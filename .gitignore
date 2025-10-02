@@ -1,9 +1,6 @@
 # macOS
 .DS_Store
 
-# VSCode
-.vscode/
-
 # 環境変数ファイル
 .env
 
