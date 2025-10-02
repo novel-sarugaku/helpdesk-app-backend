@@ -42,9 +42,10 @@
 - handlers/：エラー発生時の処理・例外ハンドリング
 - loggers/：ログ出力の設定・管理
 - logic/：ビジネスロジック（DB操作は含まない）
-- models/db/：テーブル定義
-- models/response/：APIレスポンス用のモデル定義
-- models/request/：APIリクエスト用のモデル定義
+- models/
+  - db/：テーブル定義
+  - response/：APIレスポンス用のモデル定義
+  - request/：APIリクエスト用のモデル定義
 - repositories/：DBへのCRUD操作、クエリ実行
 
 ---
@@ -76,4 +77,3 @@ docker compose up -d
 
 - 設定ファイル
   - 開発環境: docker-compose.yml
-  - テスト環境: docker-compose-test.yml
