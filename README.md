@@ -195,3 +195,64 @@ gitGraph
 
 ###  例外
 今回のプロジェクトでは、 developやrelease ブランチは使用せず、feature/* や fix/* などの作業ブランチから main ブランチへ直接マージする方針とする。
+
+---
+
+## 開発用仮想環境の作成/入退室方法
+
+1. Homebrewをインストール（未インストールの場合）  
+Homebrewの公式からインストールを行う。
+
+2. poetry をインストール（未インストールの場合）
+```bash
+brew install poetry
+```
+
+3. プロジェクト直下へ移動して依存インストール
+```bash
+cd [クローンしたディレクトリ]
+poetry install
+```
+
+4. 仮想環境に入る
+```bash
+poetry env activate
+```
+出力されたコマンドをコピーし実行（出力されるもの例：source XXX/XXX/.venv/bin/activate）
+
+5. 仮想環境から出る
+```bash
+deactivate
+```
+
+---
+
+## Linter / Formatter - Ruff
+
+このプロジェクトでは Python のコード整形および静的解析ツールとして Ruff を使用します。Ruff は Linter Formatter の両方を一括で提供します。なお、開発用仮想環境でのみ使用する方針です。
+
+---
+
+###  使用目的
+
+####  Ruff
+- 構文エラーやバグの早期検出
+- 未使用変数・未使用インポートの検出
+- 型ヒントまわりの一般的な落とし穴の指摘
+- プロジェクト全体のスタイル/規約の統一
+- 自動コード整形（インデント/クォート/改行など）
+
+###  CLI での実行方法
+```bash
+# コードチェック
+ruff check .
+
+# 自動修正を含むチェック
+ruff check . --fix
+
+# フォーマットチェック
+ruff format --check .
+
+# 自動整形
+ruff format .
+```
