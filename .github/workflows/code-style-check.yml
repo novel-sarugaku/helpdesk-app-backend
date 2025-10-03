@@ -50,6 +50,4 @@ jobs:
 
       # pytest実行
       - name: Execute pytest
-        # テストファイルが存在するときだけ、ステップを実行
-        if: ${{ hashFiles('helpdesk-app-backend/tests/**/*.py') != '' }}
         run: pytest tests
