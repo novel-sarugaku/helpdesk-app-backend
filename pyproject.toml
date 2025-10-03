@@ -29,3 +29,44 @@ freezegun = "^1.5.1"
 pytest-asyncio = "^1.1.0"
 httpx = "^0.28.1"
 pytest-cov = "^6.2.1"
+
+# ruffの詳細設定
+# =========================
+# Ruff の基本設定グループ
+# ここでは行長や対象 Python バージョンなど、
+# Lint/Format 全体に関わる“土台”を定義
+# =========================
+[tool.ruff]
+lint.extend-select = [
+  "E",    # pycodestyle（PEP8）: 空白/改行などの基本スタイル
+  "F",    # pyflakes: 未使用変数・未使用インポート等の検出
+  "I",    # isort: import の並び替え
+  "B",    # flake8-bugbear: バグに繋がりやすいコード
+  "UP",   # pyupgrade: 旧構文→新構文の提案
+  "C4",   # flake8-comprehensions: 内包表記の改善
+  "ANN",  # flake8-annotations: 型アノテーションの有無
+  "SIM",  # flake8-simplify: 冗長表現の簡素化
+  "FAST003",  # FastAPI: 未使用/未宣言の path param を検出
+]
+lint.ignore = ["E501"] # 除外したいルール。行が長すぎる（行長の調整はRuffフォーマッタが扱う方針のため無視）
+line-length = 100  # 行の最大長（この幅を超えると長行とみなす）
+target-version = "py313"  # 解析・自動修正の前提となるPythonバージョン
+show-fixes = true         # VSCode上でfixできる項目を表示
+
+# ==========================================
+# isort 互換の Import 並び替え設定グループ
+# import のグルーピングや整形ルールを調整する。
+# ==========================================
+[tool.ruff.lint.isort]
+known-first-party = ["helpdesk_app_backend"] # プロジェクト内の“自作パッケージ”名を指定
+combine-as-imports = true # asを使ったimportを1行にまとめる
+force-single-line = false # importの1行化を強制しない（true にするとすべて1 行になる）
+lines-between-types = 1 # 同じ種類のimport間に1行空ける
+
+# ===========================================================
+# flake8-type-checking 拡張の設定グループ
+# 型注釈だけで使う依存の実行時インポートを避けるための厳格化
+# TYPE_CHECKING ブロックへ移動すべき箇所を検出する。
+# ===========================================================
+[tool.ruff.lint.flake8-type-checking]
+strict = true # 厳格化: 型注釈専用の import は実行時に読み込まないよう、TYPE_CHECKING ブロックへ移動を要求
