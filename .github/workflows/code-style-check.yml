@@ -35,7 +35,7 @@ jobs:
 
       # poetryでtomlの中身のインストールを行う
       - name: Install package
-        run: poetry install  # pyproject.tomlを参照して、用意したPython環境に必要なものをインストールする
+        run: poetry install # pyproject.tomlを参照して、用意したPython環境に必要なものをインストールする
 
       # Ruffのバージョン確認・アプリ本体src/helpdesk_app_backendとテストtestsに対してRuffを実行
       - name: Run Ruff
@@ -46,7 +46,6 @@ jobs:
       # 作成した.env.testを.envという名前で仮想マシンにコピー
       - name: env
         run: cp .env.test .env
-        working-directory: src/helpdesk_app_backend
 
       # pytest実行
       - name: Execute pytest

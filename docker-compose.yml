@@ -7,7 +7,17 @@ services:
       context: .
       dockerfile: docker/python/Dockerfile
     environment:
-      - PYTHONPATH=/
+      PYTHONPATH : "/"
+      DB_CONNECTION: ${DB_CONNECTION}
+      MYSQL_DB_HOST: ${MYSQL_DB_HOST}
+      MYSQL_DB_PORT: ${MYSQL_DB_PORT}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     depends_on:
       db:
         condition: service_healthy

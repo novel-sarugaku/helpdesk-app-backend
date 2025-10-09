@@ -1,5 +1,4 @@
 from datetime import datetime
-from enum import Enum as PyEnum
 
 from sqlalchemy import DateTime, Enum, Integer, String
 
@@ -9,23 +8,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from helpdesk_app_backend.logic.calculate.calculate_datetime import get_now
 from helpdesk_app_backend.models.db.base import Base
-
-
-class UserType(PyEnum):
-    STAFF = "staff"  # 社員
-    SUPPORTER = "supporter"  # サポーター
-    ADMIN = "admin"  # 管理者
+from helpdesk_app_backend.models.enum.user import AccountType
 
 
 class User(Base):
     __tablename__ = "users"
 
-    user_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String(30), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(30), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
-    user_type: Mapped[UserType] = mapped_column(
-        Enum(UserType),
+    account_type: Mapped[AccountType] = mapped_column(
+        Enum(AccountType),
         nullable=False,
         index=True,  # 索引を張る指定。WHERE type='staff' のような絞り込み検索が速くなる
     )
