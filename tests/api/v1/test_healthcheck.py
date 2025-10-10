@@ -20,10 +20,7 @@ def test_healthcheck(test_client: TestClient) -> None:
 
 # アクセストークンが有効である
 def test_auth_healthcheck_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    def fake_verify_access_token(token: str) -> str:
-        return "dummy.decode.token"
-
-    monkeypatch.setattr(api_healthcheck, "verify_access_token", fake_verify_access_token)
+    monkeypatch.setattr(api_healthcheck, "verify_access_token", lambda token: "dummy.decode.token")
 
     test_client.cookies.set("access_token", "dummy.jwt")
 

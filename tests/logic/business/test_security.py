@@ -39,7 +39,7 @@ def test_verify_password_failed() -> None:
         security.verify_password("wrong_pass", test_hashed_pass) is False
     )  # 生パスワードと、DBに保存されたハッシュが一致しない
 
-
+# アクセストークンを作成することができる
 def test_create_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     # 偽秘密鍵・偽アルゴリズム用意
     monkeypatch.setattr(security, "SECRET_KEY", "testsecret")
@@ -60,8 +60,8 @@ def test_create_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "sub" in claims
     assert claims["sub"] == "testUser@example.com"
 
-
-def test_verify_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
+# デコードに成功する
+def test_verify_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     # 偽秘密鍵・偽アルゴリズム用意
     monkeypatch.setattr(security, "SECRET_KEY", "testsecret")
     monkeypatch.setattr(security, "ALGORITHM", "HS256")
@@ -74,7 +74,7 @@ def test_verify_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "sub" in test_decoded
     assert test_decoded["sub"] == "testUser@example.com"
 
-
+# デコードに失敗し、JWTErrorを検知する
 def test_verify_access_token_failed(monkeypatch: pytest.MonkeyPatch) -> None:
     # 偽秘密鍵・偽アルゴリズム用意
     monkeypatch.setattr(security, "SECRET_KEY", "testsecret")

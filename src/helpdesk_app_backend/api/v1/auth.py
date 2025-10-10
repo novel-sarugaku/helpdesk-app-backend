@@ -10,7 +10,7 @@ from helpdesk_app_backend.logic.business.security import create_access_token, ve
 from helpdesk_app_backend.logic.calculate.calculate_datetime import get_now_UTC
 from helpdesk_app_backend.models.db.base import get_db
 from helpdesk_app_backend.models.db.user import User
-from helpdesk_app_backend.models.response.v1.auth import LoginRequest
+from helpdesk_app_backend.models.request.v1.auth import LoginRequest
 from helpdesk_app_backend.repositories.user import get_user_by_email
 
 router = APIRouter()
