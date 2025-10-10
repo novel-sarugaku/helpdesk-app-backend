@@ -6,7 +6,6 @@ from jose.exceptions import ExpiredSignatureError
 
 import helpdesk_app_backend.api.v1.healthcheck as api_healthcheck
 
-# TODO
 BASE_URL = "/api/v1/healthcheck"
 
 
