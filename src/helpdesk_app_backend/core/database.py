@@ -6,11 +6,11 @@ load_dotenv()
 
 # os.getenv= 環境変数を見てね
 DB_CONNECTION = os.getenv("DB_CONNECTION", "")
-DB_USERNAME = os.getenv("DB_USERNAME", "")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-DB_HOST = os.getenv("DB_HOST", "")
-DB_PORT = os.getenv("DB_PORT", "")
-DB_DATABASE = os.getenv("DB_DATABASE", "")
+DB_USERNAME = os.getenv("MYSQL_USER", "")
+DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
+DB_HOST = os.getenv("MYSQL_DB_HOST", "")
+DB_PORT = os.getenv("MYSQL_DB_PORT", "")
+DB_DATABASE = os.getenv("MYSQL_DATABASE", "")
 
 DATABASE_URL = (
     DB_CONNECTION
