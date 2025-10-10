@@ -11,7 +11,7 @@ router = APIRouter()
 # テスト用のエンドポイント
 @router.get("")
 def healthcheck() -> str:
-    return "テストOK"
+    return "success"
 
 
 @router.get("/auth")

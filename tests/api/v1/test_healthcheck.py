@@ -6,53 +6,58 @@ from jose.exceptions import ExpiredSignatureError
 
 import helpdesk_app_backend.api.v1.healthcheck as api_healthcheck
 
-from helpdesk_app_backend.main import app
-
-# 使用ライブラリ：TestClient（FastAPI標準）
-# FastAPIアプリのエンドポイントをテストコードから呼び出すためのクライアント
-client = TestClient(app)
-
-base = "/api/v1/healthcheck"
+# TODO
+BASE_URL = "/api/v1/healthcheck"
 
 
-def test_healthcheck() -> None:
+def test_healthcheck(test_client: TestClient) -> None:
     # 実行
-    response = client.get(base)
+    response = test_client.get(BASE_URL)
 
     # 検証
-    assert response.json() == "テストOK"
+    assert response.json() == "success"
     assert response.status_code == 200
 
 
-# アクセストークンが存在し正しい
-def test_auth_healthcheck_success(monkeypatch: pytest.MonkeyPatch) -> None:
+# アクセストークンが有効である
+def test_auth_healthcheck_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_verify_access_token(token: str) -> str:
-        return "dummy.jwt.token"
+        return "dummy.decode.token"
 
     monkeypatch.setattr(api_healthcheck, "verify_access_token", fake_verify_access_token)
 
-    client.cookies.set("access_token", "dummy.jwt")
+    test_client.cookies.set("access_token", "dummy.jwt")
 
     # 実行
-    response = client.get(f"{base}/auth")
+    response = test_client.get(f"{BASE_URL}/auth")
 
     # 検証
     assert response.status_code == 200
     assert response.json() == "OK：access_token"
 
 
+# アクセストークンが存在しない
+def test_not_access_token(test_client: TestClient) -> None:
+    # 実行
+    response = test_client.get(f"{BASE_URL}/auth")
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "アクセストークンが存在しません"}
+
+
 # アクセストークンの有効期限が切れている
-def test_auth_healthcheck_expired(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auth_healthcheck_expired(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # ExpiredSignatureErrorを投げる
     def fake_verify_access_token(token: str) -> str:
         raise ExpiredSignatureError()
 
     monkeypatch.setattr(api_healthcheck, "verify_access_token", fake_verify_access_token)
 
-    client.cookies.set("access_token", "dummy.jwt")
+    test_client.cookies.set("access_token", "dummy.jwt")
 
     # 実行
-    response = client.get(f"{base}/auth")
+    response = test_client.get(f"{BASE_URL}/auth")
 
     # 検証
     assert response.status_code == 401
@@ -60,17 +65,17 @@ def test_auth_healthcheck_expired(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # 不正なアクセストークン
-def test_auth_healthcheck_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auth_healthcheck_invalid(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # JWTErrorを投げる
     def fake_verify_access_token(token: str) -> str:
         raise JWTError()
 
     monkeypatch.setattr(api_healthcheck, "verify_access_token", fake_verify_access_token)
 
-    client.cookies.set("access_token", "invalid.jwt")
+    test_client.cookies.set("access_token", "invalid.jwt")
 
     # 実行
-    response = client.get(f"{base}/auth")
+    response = test_client.get(f"{BASE_URL}/auth")
 
     # 検証
     assert response.status_code == 401

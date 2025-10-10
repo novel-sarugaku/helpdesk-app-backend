@@ -12,7 +12,7 @@ from collections.abc import Sequence
 
 from alembic import op
 from dotenv import load_dotenv
-from logic.business.security import get_password_hash
+from logic.business.security import trans_password_hash
 
 from helpdesk_app_backend.logic.calculate.calculate_datetime import get_now
 
@@ -33,7 +33,7 @@ admin_password = os.environ["ADMIN_PASSWORD"]
 def upgrade() -> None:
     """Upgrade schema."""
     # ハッシュ化
-    admin_hash_password = get_password_hash(admin_password)
+    admin_hash_password = trans_password_hash(admin_password)
 
     # 現在時刻（作成/更新時間）
     current_time = get_now()

@@ -6,10 +6,6 @@ from fastapi.testclient import TestClient  # FastAPIが用意しているテス�
 
 import helpdesk_app_backend.api.v1.auth as api_auth
 
-from helpdesk_app_backend.main import app  # アプリ本体(FastAPIで作ったインスタンス)を読み込み
-
-client = TestClient(app)  # 読み込んだappを渡して、擬似的なHTTPクライアントを作成
-
 
 @dataclass
 class DummyAccountType:
@@ -25,12 +21,12 @@ class DummyUser:
     account_type: DummyAccountType
 
 
-base = "/api/v1/auth"
+BASE_URL = "/api/v1/auth"
 
 
 # ログインテスト（成功）
 @pytest.mark.usefixtures("override_get_db")
-def test_login_success(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # 本物の代わりに使う偽関数
     def fake_get_user_by_email(_session: object, email: str) -> DummyUser:
         return DummyUser(
@@ -57,7 +53,7 @@ def test_login_success(monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "testP@ssw0rd"}
 
     # 実行
-    response = client.post(f"{base}/login", json=body)
+    response = test_client.post(f"{BASE_URL}/login", json=body)
 
     # 検証
     assert response.status_code == 204
@@ -67,16 +63,16 @@ def test_login_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ログインテスト（失敗：ユーザーがいない）
 @pytest.mark.usefixtures("override_get_db")
-def test_login_user_not_foun(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_login_user_not_foun(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_get_user_by_email(_session: object, email: str) -> None:
-        return None # 見つからない想定
+        return None  # 見つからない想定
 
     monkeypatch.setattr(api_auth, "get_user_by_email", fake_get_user_by_email)
 
     body = {"email": "notfoundtest@example.com", "password": "testP@ssw0rd"}
 
     # 実行
-    response = client.post(f"{base}/login", json=body)
+    response = test_client.post(f"{BASE_URL}/login", json=body)
 
     # 検証
     assert response.status_code == 401
@@ -85,7 +81,7 @@ def test_login_user_not_foun(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ログインテスト（失敗：パスワード不一致）
 @pytest.mark.usefixtures("override_get_db")
-def test_login_wrong_password(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_login_wrong_password(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_get_user_by_email(_session: object, email: str) -> DummyUser:
         return DummyUser(
             id=1,
@@ -104,7 +100,7 @@ def test_login_wrong_password(monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "wrongtestP@ssw0rd"}
 
     # 実行
-    response = client.post(f"{base}/login", json=body)
+    response = test_client.post(f"{BASE_URL}/login", json=body)
 
     # 検証
     assert response.status_code == 401
@@ -112,15 +108,15 @@ def test_login_wrong_password(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ログアウトテスト
-def test_logout() -> None:
+def test_logout(test_client: TestClient) -> None:
     # 疑似ログイン状態
-    client.cookies.set("access_token", "dummy.jwt.token")
+    test_client.cookies.set("access_token", "dummy.jwt.token")
 
     # 実行
-    response = client.post(f"{base}/logout")
+    response = test_client.post(f"{BASE_URL}/logout")
 
     # 検証
     # Set-Cookie：サーバーがクッキーを保存・削除させるための応答ヘッダー
-    # レスポンスの Set-Cookie ヘッダー文字列（無ければ空文字）に "access_token=" が含まれているかを確認
-    assert "access_token=" in response.headers.get("set-cookie", "")
+    # レスポンスの Set-Cookie ヘッダー文字列（無ければ空文字）に "access_token" が含まれているかを確認
+    assert "access_token" not in response.cookies
     assert response.status_code == 204

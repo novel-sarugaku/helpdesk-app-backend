@@ -10,7 +10,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # パスワードを安全に変換して保存用にする（生パスワードを bcrypt でハッシュにする）
-def get_password_hash(password: str) -> str:
+def trans_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
