@@ -1,4 +1,6 @@
 from dataclasses import dataclass  # テスト用の「ダミーのデータ型」を簡単に作るためのライブラリ
+from datetime import datetime, timedelta
+from unittest.mock import Mock
 
 import pytest  # pytest本体(テスト用ライブラリ)
 
@@ -6,6 +8,8 @@ from fastapi.testclient import TestClient  # FastAPIが用意しているテス�
 from sqlalchemy.orm import Session
 
 import helpdesk_app_backend.api.v1.auth as api_auth
+
+from helpdesk_app_backend.core.auth import ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 @dataclass
@@ -41,23 +45,22 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ログインテスト（成功）
-@pytest.mark.usefixtures("override_get_db")
-def test_login_success(
-    test_client: TestClient, fake_get_user_by_email: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # 受け取った payload 保存しておく箱
-    storingPayload: dict = {}
-
-    def fake_create_access_token(payload: dict) -> str:
-        # 渡された payload を、用意していた storingPayload(辞書)の "payload" というキーに保存
-        storingPayload["payload"] = payload
-        return "dummy.jwt.token"
-
-    # monkeypatchで AuthService.login_user を上の偽関数に一時的に差し替え
-    monkeypatch.setattr(api_auth, "verify_password", lambda plain_password, hashed_password: True)
-    monkeypatch.setattr(api_auth, "create_access_token", fake_create_access_token)
-
+# @pytest.mark.usefixturesに fixture の関数を書く場合 → fixture の値は使わず、差し替え・設定だけが目的の時
+@pytest.mark.usefixtures("override_get_db", "fake_get_user_by_email")
+# テスト引数に fixture の関数を書く場合 → テスト内で fixture の値を使う時
+def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "testP@ssw0rd"}
+    get_now_UTC = datetime.now()
+    expected_payload = {
+        "sub": body["email"],
+        "exp": get_now_UTC + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    }
+
+    # Mock / monkeypatch で偽関数に一時的に差し替え
+    mock_create_access_token = Mock(return_value="dummy.jwt.token")
+    monkeypatch.setattr(api_auth, "create_access_token", mock_create_access_token)
+    monkeypatch.setattr(api_auth, "get_now_UTC", lambda: get_now_UTC)
+    monkeypatch.setattr(api_auth, "verify_password", lambda plain_password, hashed_password: True)
 
     # 実行
     response = test_client.post(f"{BASE_URL}/login", json=body)
@@ -66,7 +69,10 @@ def test_login_success(
     assert response.status_code == 204
     # アクセストークンが正しいかを確認（Cookie のうち access_token の値を取り出す）
     assert response.cookies.get("access_token") == "dummy.jwt.token"
-    assert storingPayload["payload"]["sub"] == body["email"]
+    # mock_create_access_token が1回呼ばれたかを確認
+    mock_create_access_token.assert_called_once()
+    # mock_create_access_token の引数が expected_payload と一致しているかを確認
+    mock_create_access_token.assert_called_with(expected_payload)
 
 
 # ログインテスト（失敗：ユーザーがいない）
@@ -85,10 +91,8 @@ def test_login_user_not_foun(test_client: TestClient, monkeypatch: pytest.Monkey
 
 
 # ログインテスト（失敗：パスワード不一致）
-@pytest.mark.usefixtures("override_get_db")
-def test_login_wrong_password(
-    test_client: TestClient, fake_get_user_by_email: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
+@pytest.mark.usefixtures("override_get_db", "fake_get_user_by_email")
+def test_login_wrong_password(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(api_auth, "verify_password", lambda plain_password, hashed_password: False)
 
     body = {"email": "test@example.com", "password": "wrongtestP@ssw0rd"}

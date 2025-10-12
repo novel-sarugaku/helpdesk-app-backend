@@ -8,6 +8,7 @@ from helpdesk_app_backend.main import app
 from helpdesk_app_backend.models.db.base import get_db
 
 
+# fixture：テストで毎回使う準備を自動でしてくれる仕組み
 @pytest.fixture
 def override_get_db() -> Iterator[None]:
     # 本来 get_db が返すはずのDBセッションの代わりに、適当なオブジェクトを返す関数を作成
