@@ -50,16 +50,16 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
 # テスト引数に fixture の関数を書く場合 → テスト内で fixture の値を使う時
 def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "testP@ssw0rd"}
-    get_now_UTC = datetime.now()
+    current_time = datetime.now()
     expected_payload = {
         "sub": body["email"],
-        "exp": get_now_UTC + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+        "exp": current_time + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 
     # Mock / monkeypatch で偽関数に一時的に差し替え
     mock_create_access_token = Mock(return_value="dummy.jwt.token")
     monkeypatch.setattr(api_auth, "create_access_token", mock_create_access_token)
-    monkeypatch.setattr(api_auth, "get_now_UTC", lambda: get_now_UTC)
+    monkeypatch.setattr(api_auth, "get_now_UTC", lambda: current_time)
     monkeypatch.setattr(api_auth, "verify_password", lambda plain_password, hashed_password: True)
 
     # 実行

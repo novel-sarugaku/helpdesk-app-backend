@@ -27,7 +27,7 @@ def auth_healthcheck(access_token: str | None = Cookie(default=None)) -> str | N
 
     # 暗号解除(decode)できなかった場合、401エラーを返す
     except ExpiredSignatureError as err:
-        raise UnauthorizedException("有効期限切です") from err
+        raise UnauthorizedException("有効期限切れです") from err
 
     except JWTError as err:
         raise UnauthorizedException("不正なアクセストークンです") from err
