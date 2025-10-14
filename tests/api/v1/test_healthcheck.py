@@ -57,7 +57,7 @@ def test_auth_healthcheck_expired(test_client: TestClient, monkeypatch: pytest.M
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "有効期限切です"}
+    assert response.json() == {"detail": "有効期限切れです"}
 
 
 # 不正なアクセストークン
