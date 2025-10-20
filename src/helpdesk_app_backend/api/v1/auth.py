@@ -36,6 +36,7 @@ def login(
     # payload作成
     payload = {
         "sub": target_user.email,
+        "account_type": target_user.account_type.value,
         "exp": get_now_UTC() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 

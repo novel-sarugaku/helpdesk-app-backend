@@ -6,6 +6,8 @@ from jose.exceptions import ExpiredSignatureError
 
 import helpdesk_app_backend.api.v1.healthcheck as api_healthcheck
 
+from helpdesk_app_backend.models.enum.user import AccountType
+
 BASE_URL = "/api/v1/healthcheck"
 
 
@@ -20,7 +22,11 @@ def test_healthcheck(test_client: TestClient) -> None:
 
 # アクセストークンが有効である
 def test_auth_healthcheck_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(api_healthcheck, "verify_access_token", lambda token: "dummy.decode.token")
+    monkeypatch.setattr(
+        api_healthcheck,
+        "verify_access_token",
+        lambda token: {"account_type": AccountType.ADMIN.value},
+    )
 
     test_client.cookies.set("access_token", "dummy.jwt")
 
@@ -29,7 +35,7 @@ def test_auth_healthcheck_success(test_client: TestClient, monkeypatch: pytest.M
 
     # 検証
     assert response.status_code == 200
-    assert response.json() == "OK：access_token"
+    assert response.json() == {"account_type": AccountType.ADMIN.value}
 
 
 # アクセストークンが存在しない
