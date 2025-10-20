@@ -50,9 +50,11 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
 # テスト引数に fixture の関数を書く場合 → テスト内で fixture の値を使う時
 def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "testP@ssw0rd"}
+    mock_account_type = "admin"
     current_time = datetime.now()
     expected_payload = {
         "sub": body["email"],
+        "account_type": mock_account_type,
         "exp": current_time + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 

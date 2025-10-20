@@ -22,8 +22,10 @@ def auth_healthcheck(access_token: str | None = Cookie(default=None)) -> str | N
 
     # access_token が None でなければ 暗号解除(decode)を試みる
     try:
-        verify_access_token(access_token)
-        return "OK：access_token"
+        # デコードした access_token から account_type を抽出
+        decoded_access_token = verify_access_token(access_token)
+        user_account_type = decoded_access_token.get("account_type")
+        return user_account_type
 
     # 暗号解除(decode)できなかった場合、401エラーを返す
     except ExpiredSignatureError as err:
