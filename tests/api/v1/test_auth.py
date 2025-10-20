@@ -10,11 +10,7 @@ from sqlalchemy.orm import Session
 import helpdesk_app_backend.api.v1.auth as api_auth
 
 from helpdesk_app_backend.core.auth import ACCESS_TOKEN_EXPIRE_MINUTES
-
-
-@dataclass
-class DummyAccountType:
-    value: str
+from helpdesk_app_backend.models.enum.user import AccountType
 
 
 @dataclass
@@ -23,7 +19,7 @@ class DummyUser:
     name: str
     email: str
     password: str  # ハッシュ済みとして扱う
-    account_type: DummyAccountType
+    account_type: AccountType
 
 
 BASE_URL = "/api/v1/auth"
@@ -38,7 +34,7 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
             name="テストユーザー",
             email=email,
             password="hashedpass",
-            account_type=DummyAccountType("admin"),
+            account_type=AccountType.ADMIN,
         )
 
     monkeypatch.setattr(api_auth, "get_user_by_email", _fake)
@@ -50,11 +46,10 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
 # テスト引数に fixture の関数を書く場合 → テスト内で fixture の値を使う時
 def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "testP@ssw0rd"}
-    mock_account_type = "admin"
     current_time = datetime.now()
     expected_payload = {
         "sub": body["email"],
-        "account_type": mock_account_type,
+        "account_type": AccountType.ADMIN.value,
         "exp": current_time + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 
