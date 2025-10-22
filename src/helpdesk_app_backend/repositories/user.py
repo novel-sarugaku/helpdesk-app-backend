@@ -9,5 +9,5 @@ def get_user_by_email(session: Session, email: str) -> User:
 
 
 # ユーザーアカウントを取得する　.query()：参照するテーブルを指定　.all()：データすべて指定
-def get_user_account_all(session: Session) -> list[User]:
+def get_users_all(session: Session) -> list[User]:
     return session.query(User).all()

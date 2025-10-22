@@ -4,13 +4,13 @@ import pytest
 
 from fastapi.testclient import TestClient
 
-import helpdesk_app_backend.api.v1.user_account as api_user_account
+import helpdesk_app_backend.api.v1.account as api_account
 
 from helpdesk_app_backend.models.enum.user import AccountType
 
 
 @dataclass
-class DummyUserAccount:
+class DummyAccount:
     id: int
     name: str
     email: str
@@ -19,11 +19,11 @@ class DummyUserAccount:
 
 
 # GETテスト
-@pytest.mark.usefixtures("override_get_db")
-def test_get_user_account(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.usefixtures("override_get_db", "override_auth_healthcheck")
+def test_get_accounts(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # テスト用登録済データ
     registered_data = [
-        DummyUserAccount(
+        DummyAccount(
             id=1,
             name="テストユーザー",
             email="tester@example.com",
@@ -32,10 +32,10 @@ def test_get_user_account(test_client: TestClient, monkeypatch: pytest.MonkeyPat
         )
     ]
 
-    monkeypatch.setattr(api_user_account, "get_user_account_all", lambda _session: registered_data)
+    monkeypatch.setattr(api_account, "get_users_all", lambda _session: registered_data)
 
     # 実行
-    response = test_client.get("/api/v1/user_account")
+    response = test_client.get("/api/v1/admin/account")
 
     # 検証
     assert response.status_code == 200

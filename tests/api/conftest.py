@@ -4,8 +4,12 @@ import pytest
 
 from fastapi.testclient import TestClient
 
+import helpdesk_app_backend.api.v1.account as api_account
+
 from helpdesk_app_backend.main import app
 from helpdesk_app_backend.models.db.base import get_db
+from helpdesk_app_backend.models.enum.user import AccountType
+from helpdesk_app_backend.models.response.v1.healthcheck import HealthcheckAuthResponse
 
 
 # fixture：テストで毎回使う準備を自動でしてくれる仕組み
@@ -21,7 +25,20 @@ def override_get_db() -> Iterator[None]:
 
     yield  # このフィクスチャを使ったテスト本体が実行される
 
-    app.dependency_overrides.pop(get_db, None)  # 元の状態に戻す
+    app.dependency_overrides.pop(get_db, None)  # 元の状態に戻す（差し替え解除）
+
+
+@pytest.fixture
+def override_auth_healthcheck() -> Iterator[None]:
+    # 有効なトークンを持っている程
+    def _fake_auth_healthcheck() -> HealthcheckAuthResponse:
+        return HealthcheckAuthResponse(account_type=AccountType.ADMIN)
+
+    app.dependency_overrides[api_account.auth_healthcheck] = _fake_auth_healthcheck
+
+    yield
+
+    app.dependency_overrides.pop(api_account.auth_healthcheck, None)
 
 
 # 使用ライブラリ：TestClient（FastAPI標準）
