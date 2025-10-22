@@ -4,7 +4,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
-import helpdesk_app_backend.api.v1.account as api_account
+import helpdesk_app_backend.api.v1.admin.account as api_account
 
 from helpdesk_app_backend.models.enum.user import AccountType
 
@@ -19,7 +19,7 @@ class DummyAccount:
 
 
 # GETテスト
-@pytest.mark.usefixtures("override_get_db", "override_auth_healthcheck")
+@pytest.mark.usefixtures("override_get_db", "override_validate_access_token")
 def test_get_accounts(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     # テスト用登録済データ
     registered_data = [

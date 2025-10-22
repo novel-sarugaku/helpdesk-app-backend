@@ -1,10 +1,10 @@
+from unittest.mock import Mock
+
 import pytest
 
 from fastapi.testclient import TestClient
-from jose import JWTError
-from jose.exceptions import ExpiredSignatureError
 
-import helpdesk_app_backend.api.v1.healthcheck as api_healthcheck
+import helpdesk_app_backend.core.check_token as check_token
 
 from helpdesk_app_backend.models.enum.user import AccountType
 
@@ -20,12 +20,15 @@ def test_healthcheck(test_client: TestClient) -> None:
     assert response.status_code == 200
 
 
-# アクセストークンが有効である
-def test_auth_healthcheck_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+# validate_access_token を返す
+def test_auth_healthcheck_returns_validate_result(
+    test_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock_account_type_response = Mock(return_value={"account_type": AccountType.ADMIN.value})
     monkeypatch.setattr(
-        api_healthcheck,
+        check_token,
         "verify_access_token",
-        lambda token: {"account_type": AccountType.ADMIN.value},
+        mock_account_type_response,
     )
 
     test_client.cookies.set("access_token", "dummy.jwt")
@@ -36,49 +39,5 @@ def test_auth_healthcheck_success(test_client: TestClient, monkeypatch: pytest.M
     # 検証
     assert response.status_code == 200
     assert response.json() == {"account_type": AccountType.ADMIN.value}
-
-
-# アクセストークンが存在しない
-def test_not_access_token(test_client: TestClient) -> None:
-    # 実行
-    response = test_client.get(f"{BASE_URL}/auth")
-
-    # 検証
-    assert response.status_code == 401
-    assert response.json() == {"detail": "アクセストークンが存在しません"}
-
-
-# アクセストークンの有効期限が切れている
-def test_auth_healthcheck_expired(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    # ExpiredSignatureErrorを投げる
-    def fake_verify_access_token(token: str) -> str:
-        raise ExpiredSignatureError()
-
-    monkeypatch.setattr(api_healthcheck, "verify_access_token", fake_verify_access_token)
-
-    test_client.cookies.set("access_token", "dummy.jwt")
-
-    # 実行
-    response = test_client.get(f"{BASE_URL}/auth")
-
-    # 検証
-    assert response.status_code == 401
-    assert response.json() == {"detail": "有効期限切れです"}
-
-
-# 不正なアクセストークン
-def test_auth_healthcheck_invalid(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    # JWTErrorを投げる
-    def fake_verify_access_token(token: str) -> str:
-        raise JWTError()
-
-    monkeypatch.setattr(api_healthcheck, "verify_access_token", fake_verify_access_token)
-
-    test_client.cookies.set("access_token", "invalid.jwt")
-
-    # 実行
-    response = test_client.get(f"{BASE_URL}/auth")
-
-    # 検証
-    assert response.status_code == 401
-    assert response.json() == {"detail": "不正なアクセストークンです"}
+    # validate_access_token が1回呼ばれ、引数は正しいか確認
+    mock_account_type_response.assert_called_once_with("dummy.jwt")

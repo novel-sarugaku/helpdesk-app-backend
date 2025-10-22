@@ -27,8 +27,6 @@
 ##  使用技術
 - 言語: Python
 - フレームワーク: FastAPI
-- ビルドツール: Vite
-- UIライブラリ: Chakra UI
 - パッケージ管理: Poetry
 - DB: MySQL
 - ORM：SQLAlchemy
