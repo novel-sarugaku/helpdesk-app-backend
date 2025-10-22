@@ -14,4 +14,5 @@ def healthcheck() -> str:
 
 @router.get("/auth")
 def auth_healthcheck(access_token: str | None = Cookie(default=None)) -> HealthcheckAuthResponse:
-    return validate_access_token(access_token)
+    account_type_enum = validate_access_token(access_token)
+    return HealthcheckAuthResponse(account_type=account_type_enum)

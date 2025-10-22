@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 import helpdesk_app_backend.api.v1.admin.account as api_account
 
+from helpdesk_app_backend.core.check_token import validate_access_token
+from helpdesk_app_backend.main import app
 from helpdesk_app_backend.models.enum.user import AccountType
 
 
@@ -18,9 +20,12 @@ class DummyAccount:
     account_type: AccountType
 
 
-# GETテスト
-@pytest.mark.usefixtures("override_get_db", "override_validate_access_token")
-def test_get_accounts(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+# GETテスト（成功）
+@pytest.mark.usefixtures("override_get_db")
+def test_get_accounts_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # app.dependency_overrides → Depends() に渡した関数差し替え。今回、AccountType.ADMINで返す
+    monkeypatch.setitem(app.dependency_overrides, validate_access_token, lambda: AccountType.ADMIN)
+
     # テスト用登録済データ
     registered_data = [
         DummyAccount(
@@ -47,3 +52,16 @@ def test_get_accounts(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) 
             "account_type": "staff",
         }
     ]
+
+
+# GETテスト（失敗）
+def test_get_accounts_forbidden_when_staff(
+    test_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setitem(app.dependency_overrides, validate_access_token, lambda: AccountType.STAFF)
+
+    # 実行
+    response = test_client.get("/api/v1/admin/account")
+    # 検証
+    assert response.status_code == 403
+    assert response.json() == {"detail": "アクセス権限がありません"}

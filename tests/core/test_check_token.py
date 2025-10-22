@@ -8,8 +8,6 @@ import helpdesk_app_backend.logic.business.security as security
 from helpdesk_app_backend.exceptions.unauthorized_exception import UnauthorizedException
 from helpdesk_app_backend.models.enum.user import AccountType
 
-BASE_URL = "/api/v1/healthcheck"
-
 
 # アクセストークンが有効
 def test_validate_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -23,7 +21,7 @@ def test_validate_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     response = check_token.validate_access_token("dummy.jwt")
 
     # 検証
-    assert response.account_type == AccountType.ADMIN
+    assert response == AccountType.ADMIN
 
 
 # アクセストークンが存在しない
