@@ -18,9 +18,9 @@ def get_accounts(
     # Depends(関数) → この関数を呼ぶ前に、()内の関数を実行
     session: Annotated[Session, Depends(get_db)],
     # トークンの確認し、問題なければ get_accounts 実行
-    returned_account_type: Annotated[AccountType, Depends(validate_access_token)],
+    current_acount_type: Annotated[AccountType, Depends(validate_access_token)],
 ) -> list[GetAccountResponse]:
-    if returned_account_type != AccountType.ADMIN:
+    if current_acount_type != AccountType.ADMIN:
         raise ForbiddenException("アクセス権限がありません")
 
     accounts = get_users_all(session)
