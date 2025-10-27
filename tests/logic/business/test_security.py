@@ -8,6 +8,28 @@ import helpdesk_app_backend.logic.business.security as security
 test_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+# 正常なパスワードで例外が発生しない
+def test_validate_password_success() -> None:
+    # テスト用有効パスワード（8文字以上/大文字あり/数字あり）
+    valid_password = "Abcdefg1"
+    # 検証
+    assert security.validate_password(valid_password) is None
+
+
+@pytest.mark.parametrize(
+    "password, expected_message",
+    [
+        ("abcdefghi", "パスワードには大文字を1文字以上含めてください"),
+        ("ABCDEFGH", "パスワードには数字を1文字以上含めてください"),
+    ],
+)
+# 違反パスワードで例外が発生する
+def test_validate_password_error(password: str, expected_message: str) -> None:
+    # この処理で ValueError が発生することを期待
+    with pytest.raises(ValueError, match=expected_message):
+        security.validate_password(password)
+
+
 # 正常にハッシュ化される
 def test_trans_password_hash() -> None:
     test_raw_pass = "P@ssw0rd12345"
@@ -39,6 +61,7 @@ def test_verify_password_failed() -> None:
         security.verify_password("wrong_pass", test_hashed_pass) is False
     )  # 生パスワードと、DBに保存されたハッシュが一致しない
 
+
 # アクセストークンを作成することができる
 def test_create_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     # 偽秘密鍵・偽アルゴリズム用意
@@ -60,6 +83,7 @@ def test_create_access_token(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "sub" in claims
     assert claims["sub"] == "testUser@example.com"
 
+
 # デコードに成功する
 def test_verify_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     # 偽秘密鍵・偽アルゴリズム用意
@@ -73,6 +97,7 @@ def test_verify_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     # 検証
     assert "sub" in test_decoded
     assert test_decoded["sub"] == "testUser@example.com"
+
 
 # デコードに失敗し、JWTErrorを検知する
 def test_verify_access_token_failed(monkeypatch: pytest.MonkeyPatch) -> None:

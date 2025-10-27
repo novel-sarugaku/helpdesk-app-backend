@@ -42,7 +42,7 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
 
 # ログインテスト（成功）
 # @pytest.mark.usefixturesに fixture の関数を書く場合 → fixture の値は使わず、差し替え・設定だけが目的の時
-@pytest.mark.usefixtures("override_get_db", "fake_get_user_by_email")
+@pytest.mark.usefixtures("override_get_db_success", "fake_get_user_by_email")
 # テスト引数に fixture の関数を書く場合 → テスト内で fixture の値を使う時
 def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     body = {"email": "test@example.com", "password": "testP@ssw0rd"}
@@ -73,7 +73,7 @@ def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch)
 
 
 # ログインテスト（失敗：ユーザーがいない）
-@pytest.mark.usefixtures("override_get_db")
+@pytest.mark.usefixtures("override_get_db_error")
 def test_login_user_not_foun(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(api_auth, "get_user_by_email", lambda _session, email: None)
 
@@ -88,7 +88,7 @@ def test_login_user_not_foun(test_client: TestClient, monkeypatch: pytest.Monkey
 
 
 # ログインテスト（失敗：パスワード不一致）
-@pytest.mark.usefixtures("override_get_db", "fake_get_user_by_email")
+@pytest.mark.usefixtures("override_get_db_error", "fake_get_user_by_email")
 def test_login_wrong_password(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(api_auth, "verify_password", lambda plain_password, hashed_password: False)
 

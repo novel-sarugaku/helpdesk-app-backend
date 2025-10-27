@@ -7,27 +7,28 @@ from fastapi.testclient import TestClient
 from helpdesk_app_backend.core.check_token import validate_access_token
 from helpdesk_app_backend.main import app
 from helpdesk_app_backend.models.db.base import get_db
+from helpdesk_app_backend.models.db.user import User
 from helpdesk_app_backend.models.enum.user import AccountType
 
 
+# 【Fixture】TestClient を提供
 # fixture：テストで毎回使う準備を自動でしてくれる仕組み
-# get_db を差し替えるfixture
+# FastAPIアプリのエンドポイントをテストコードから呼び出すためのクライアント
 @pytest.fixture
-def override_get_db() -> Iterator[None]:
-    # 本来 get_db が返すはずのDBセッションの代わりに、適当なオブジェクトを返す関数を作成
-    def _fake_db() -> Iterator[object]:
-        yield object()
+def test_client() -> TestClient:
+    # raise_server_exceptions
+    #   True（デフォルト）
+    #     エラー発生 → そのまま例外を投げる
+    #     test_client.post(...) の行でテストが止まる（その下の assert に進めない）
+    #     検証方法：with pytest.raises(...) で例外としてチェック
+    #   False
+    #     エラー発生 → 例外ハンドラが動いて HTTP 500 などのレスポンスに変換
+    #     test_client.post(...) は普通に戻ってくる（中身は 500）
+    #     検証方法：response.status_code == 500、response.json() などレスポンスとしてチェック
+    return TestClient(app, raise_server_exceptions=False)
 
-    app.dependency_overrides[get_db] = (
-        _fake_db  # 本物の get_db を _fake_db に差し替え（実際のDBは使わない）
-    )
 
-    yield  # このフィクスチャを使ったテスト本体が実行される
-
-    app.dependency_overrides.pop(get_db, None)  # 元の状態に戻す（差し替え解除）
-
-
-# validate_access_token を差し替えるfixture
+# 【Fixture】validate_access_token を差し替え（任意の AccountType を返す）
 @pytest.fixture
 def override_validate_access_token() -> (
     Iterator[Callable[[AccountType], None]]
@@ -40,9 +41,92 @@ def override_validate_access_token() -> (
     app.dependency_overrides.pop(validate_access_token, None)
 
 
-# 使用ライブラリ：TestClient（FastAPI標準）
-# FastAPIアプリのエンドポイントをテストコードから呼び出すためのクライアント
-# fixture：TestClient を返すfixture
+# 【FakeSession】commit が成功する擬似セッション
+# そのテストで必要なメソッドが入っていれば十分なため、使わないメソッドがあっても、問題はない。
+class FakeSessionCommitSuccess:
+    def __init__(  # __init__：コンストラクタ(オブジェクトを作るときに最初の設定をする場所)
+        self,
+    ) -> None:
+        self.commit_called = False
+
+    # 追加されたレコードへIDを付けるフリをするメソッド
+    # 本来DBに保存するときに呼ぶsession.add(...)の代役
+    # 追加されたインスタンスにIDを設定(今回はID=1)する(本来はDBが自動で設定する)
+    def add(self, instance: User) -> None:
+        instance.id = 1
+
+    def commit(self) -> None:
+        self.commit_called = True
+
+    def rollback(self) -> None:  # テストでは何もしない空実装
+        pass
+
+
+# 【Fixture】FakeSessionCommitSuccess を提供（commit 成功）
 @pytest.fixture
-def test_client() -> TestClient:
-    return TestClient(app)
+def success_session() -> FakeSessionCommitSuccess:
+    return FakeSessionCommitSuccess()
+
+
+# 【Fixture】get_db を差し替え（本番DBは使わない/成功版）
+@pytest.fixture
+def override_get_db_success(
+    success_session: FakeSessionCommitSuccess,
+) -> Iterator[FakeSessionCommitSuccess]:
+    # 本来 get_db が返すはずのDBセッションの代わりに、適当なオブジェクトを返す関数を作成
+    def _fake_db() -> Iterator[FakeSessionCommitSuccess]:
+        yield success_session
+
+    # 本物の get_db を _fake_db に差し替え（実際のDBは使わない）
+    app.dependency_overrides[get_db] = _fake_db
+
+    # このフィクスチャを使ったテスト本体が実行される
+    yield success_session
+
+    # 元の状態に戻す（差し替え解除）
+    app.dependency_overrides.pop(get_db, None)
+
+
+# 【FakeSession】commit で例外を投げる擬似セッション
+class FakeSessionCommitError:
+    def __init__(
+        self,
+    ) -> None:
+        self.commit_called = False  # commitが呼ばれたかどうかのフラグ → 呼ばれていない
+        self.rolled_back = False  # rollbackが呼ばれたかどうかのフラグ → 呼ばれていない
+
+    def add(self, instance: User) -> None:
+        instance.id = 1
+
+    def commit(self) -> None:
+        self.commit_called = True  # commitが呼ばれたことを記録
+        # わざと例外を発生させる。これによりrollbackが呼ばれるようになる
+        raise Exception("コミットに失敗しました")
+
+    def rollback(self) -> None:
+        self.rolled_back = True  # rollbackが呼ばれたことを記録
+
+
+# 【Fixture】FakeSessionCommitError を提供（commit で例外）
+@pytest.fixture
+def error_session() -> FakeSessionCommitError:
+    return FakeSessionCommitError()
+
+
+# 【Fixture】get_db を差し替え（本番DBは使わない/失敗版）
+@pytest.fixture
+def override_get_db_error(
+    error_session: FakeSessionCommitError,
+) -> Iterator[FakeSessionCommitError]:
+    # 本来 get_db が返すはずのDBセッションの代わりに、適当なオブジェクトを返す関数を作成
+    def _fake_db() -> Iterator[FakeSessionCommitError]:
+        yield error_session
+
+    # 本物の get_db を _fake_db に差し替え（実際のDBは使わない）
+    app.dependency_overrides[get_db] = _fake_db
+
+    # このフィクスチャを使ったテスト本体が実行される
+    yield error_session
+
+    # 元の状態に戻す（差し替え解除）
+    app.dependency_overrides.pop(get_db, None)
