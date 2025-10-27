@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from helpdesk_app_backend.core.check_token import validate_access_token
 from helpdesk_app_backend.exceptions.forbidden_exception import ForbiddenException
 from helpdesk_app_backend.exceptions.unprocessable_entity_exception import (
-    UnprocessableEntityException,
+    BusinessException,
 )
 from helpdesk_app_backend.logic.business.security import trans_password_hash
 from helpdesk_app_backend.models.db.base import get_db
@@ -56,10 +56,10 @@ def create_account(
         raise ForbiddenException("アクセス権限がありません")
 
     if get_user_by_email(session, body.email) is not None:
-        raise UnprocessableEntityException("すでに存在するメールアドレスです")
+        raise BusinessException("すでに存在するメールアドレスです")
 
     if body.account_type == AccountType.ADMIN:
-        raise UnprocessableEntityException("管理者アカウントは作成できません")
+        raise BusinessException("管理者アカウントは作成できません")
 
     new_account = User(
         name=body.name,
