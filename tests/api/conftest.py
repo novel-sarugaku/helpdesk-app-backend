@@ -16,7 +16,16 @@ from helpdesk_app_backend.models.enum.user import AccountType
 # FastAPIアプリのエンドポイントをテストコードから呼び出すためのクライアント
 @pytest.fixture
 def test_client() -> TestClient:
-    return TestClient(app)
+    # raise_server_exceptions
+    #   True（デフォルト）
+    #     エラー発生 → そのまま例外を投げる
+    #     test_client.post(...) の行でテストが止まる（その下の assert に進めない）
+    #     検証方法：with pytest.raises(...) で例外としてチェック
+    #   False
+    #     エラー発生 → 例外ハンドラが動いて HTTP 500 などのレスポンスに変換
+    #     test_client.post(...) は普通に戻ってくる（中身は 500）
+    #     検証方法：response.status_code == 500、response.json() などレスポンスとしてチェック
+    return TestClient(app, raise_server_exceptions=False)
 
 
 # 【Fixture】validate_access_token を差し替え（任意の AccountType を返す）

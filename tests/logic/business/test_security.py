@@ -5,8 +5,6 @@ from passlib.context import CryptContext
 
 import helpdesk_app_backend.logic.business.security as security
 
-from helpdesk_app_backend.exceptions.validation_exception import ValidationException
-
 test_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -21,19 +19,15 @@ def test_validate_password_success() -> None:
 @pytest.mark.parametrize(
     "password, expected_message",
     [
-        ("Abc1", "パスワードは8文字以上である必要があります"),
         ("abcdefghi", "パスワードには大文字を1文字以上含めてください"),
         ("ABCDEFGH", "パスワードには数字を1文字以上含めてください"),
     ],
 )
 # 違反パスワードで例外が発生する
 def test_validate_password_error(password: str, expected_message: str) -> None:
-    # この処理で ValidationException が発生することを期待
-    with pytest.raises(ValidationException) as captured_exception:
+    # この処理で ValueError が発生することを期待
+    with pytest.raises(ValueError, match=expected_message):
         security.validate_password(password)
-    # 検証
-    assert captured_exception.value.status_code == 422
-    assert captured_exception.value.detail == expected_message  # 例外メッセージが期待通りか確認
 
 
 # 正常にハッシュ化される

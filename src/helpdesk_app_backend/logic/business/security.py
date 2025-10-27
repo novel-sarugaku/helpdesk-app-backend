@@ -2,21 +2,18 @@ from jose import jwt
 from passlib.context import CryptContext
 
 from helpdesk_app_backend.core.auth import ALGORITHM, SECRET_KEY
-from helpdesk_app_backend.exceptions.validation_exception import ValidationException
 
 
 # パスワード制約確認
 def validate_password(password: str) -> None:
-    if len(password) < 8:
-        raise ValidationException("パスワードは8文字以上である必要があります")
     # any(...) → 1つでも条件を満たす要素があれば True、not any(...) → 大文字/数字が1つもないときに True
     # .isupper() → その文字が大文字かどうかを判定するメソッド
     # .isdigit() → その文字が数字かどうかを判定するメソッド
     # for char in password → password の中の1文字ずつを char に入れて順番に見る
     if not any(char.isupper() for char in password):
-        raise ValidationException("パスワードには大文字を1文字以上含めてください")
+        raise ValueError("パスワードには大文字を1文字以上含めてください")
     if not any(char.isdigit() for char in password):
-        raise ValidationException("パスワードには数字を1文字以上含めてください")
+        raise ValueError("パスワードには数字を1文字以上含めてください")
 
 
 # CryptContext(...) → パスワードハッシュの設定（どの方式を使うか等）

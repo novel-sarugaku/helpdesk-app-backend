@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from helpdesk_app_backend.logic.business.security import validate_password
 from helpdesk_app_backend.models.enum.user import AccountType
@@ -8,7 +8,7 @@ from helpdesk_app_backend.models.enum.user import AccountType
 class CreateAccountRequest(BaseModel):
     name: str
     email: EmailStr
-    password: str
+    password: str = Field(min_length=8)
     account_type: AccountType
 
     # Pydantic のモデルに、password用バリデーションを差し込む

@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from helpdesk_app_backend.core.check_token import validate_access_token
 from helpdesk_app_backend.exceptions.forbidden_exception import ForbiddenException
+from helpdesk_app_backend.exceptions.unprocessable_entity_exception import (
+    UnprocessableEntityException,
+)
 from helpdesk_app_backend.logic.business.security import trans_password_hash
 from helpdesk_app_backend.models.db.base import get_db
 from helpdesk_app_backend.models.db.user import User
@@ -14,7 +17,7 @@ from helpdesk_app_backend.models.response.v1.account import (
     CreateAccountResponse,
     GetAccountResponseItem,
 )
-from helpdesk_app_backend.repositories.user import get_users_all
+from helpdesk_app_backend.repositories.user import get_user_by_email, get_users_all
 
 router = APIRouter()
 
@@ -52,6 +55,12 @@ def create_account(
     if current_acount_type != AccountType.ADMIN:
         raise ForbiddenException("アクセス権限がありません")
 
+    if get_user_by_email(session, body.email) is not None:
+        raise UnprocessableEntityException("すでに存在するメールアドレスです")
+
+    if body.account_type == AccountType.ADMIN:
+        raise UnprocessableEntityException("管理者アカウントは作成できません")
+
     new_account = User(
         name=body.name,
         email=body.email,
@@ -63,8 +72,10 @@ def create_account(
 
     try:
         session.commit()
-    except Exception:
+    except Exception as error:
         session.rollback()
+        raise error
+
     return CreateAccountResponse(
         id=new_account.id,
         name=new_account.name,
