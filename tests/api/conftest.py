@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterator
+from sqlalchemy.orm import ColumnProperty
 
 import pytest
 
@@ -49,11 +50,32 @@ class FakeSessionCommitSuccess:
     ) -> None:
         self.commit_called = False
 
-    # 追加されたレコードへIDを付けるフリをするメソッド
+    # 追加されたレコードへID、defaultが設定されているカラムにその値を付けるフリをするメソッド
     # 本来DBに保存するときに呼ぶsession.add(...)の代役
     # 追加されたインスタンスにIDを設定(今回はID=1)する(本来はDBが自動で設定する)
-    def add(self, instance: User) -> None:
-        instance.id = 1
+    def add(self, model) -> None:
+        # model.__mapper__.iterate_properties → .__mapper__.iterate_properties は sqlAlchemy か python の modelのプロパティ
+        for prop in model.__mapper__.iterate_properties:
+            # isinstance（） → python の書き方 第一引数が第二引数のクラスのインスタンスかどうか
+            if isinstance(prop, ColumnProperty):
+                # col → id や name などカラムの情報
+                # col.name → カラム名
+                for col in prop.columns:
+                    if col.name == "created_at" or col.name == "updated_at":
+                        continue
+                    if col.name == "id":
+                        value = 1
+                        # 第一引数のクラスに対して、第二引数の文字列をキーにして第三引数の値を返却するようにプロパティを作成
+                        # 例：model.id とした場合 1 が返ってくる
+                        setattr(model, col.name, value)
+                    # addメソッドが呼ばれた際に、default設定されているが値が未入力の場合
+                    if col.default is not None and getattr(model, col.name) is None:
+                        # col.default.arg → default値 をそのまま取得してくる
+                        if callable(col.default.arg):
+                            value = col.default.arg()
+                        else:
+                            value = col.default.arg
+                        setattr(model, col.name, value)
 
     def commit(self) -> None:
         self.commit_called = True
@@ -64,6 +86,7 @@ class FakeSessionCommitSuccess:
 
 # 【Fixture】FakeSessionCommitSuccess を提供（commit 成功）
 @pytest.fixture
+# ruff: noqa
 def success_session() -> FakeSessionCommitSuccess:
     return FakeSessionCommitSuccess()
 
@@ -95,8 +118,8 @@ class FakeSessionCommitError:
         self.commit_called = False  # commitが呼ばれたかどうかのフラグ → 呼ばれていない
         self.rolled_back = False  # rollbackが呼ばれたかどうかのフラグ → 呼ばれていない
 
-    def add(self, instance: User) -> None:
-        instance.id = 1
+    def add(self, _) -> None:
+        return
 
     def commit(self) -> None:
         self.commit_called = True  # commitが呼ばれたことを記録

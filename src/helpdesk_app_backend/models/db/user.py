@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum, Integer, String
 
 # SQLAlchemy 2.0形式（最新）の書き方
 # Mapped：カラムになるものであることを示す。mapped_column：カラムの条件を指定するもの。
@@ -23,5 +23,6 @@ class User(Base):
         nullable=False,
         index=True,  # 索引を張る指定。WHERE type='staff' のような絞り込み検索が速くなる
     )
+    is_suspended: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_now, onupdate=get_now)

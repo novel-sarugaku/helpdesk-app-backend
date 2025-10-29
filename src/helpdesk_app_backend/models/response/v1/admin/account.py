@@ -9,6 +9,7 @@ class GetAccountResponseItem(BaseModel):
     name: str
     email: str
     account_type: AccountType
+    is_suspended: bool
 
 
 # アカウント追加（POST）
@@ -17,3 +18,13 @@ class CreateAccountResponse(BaseModel):
     name: str
     email: str
     account_type: AccountType
+    is_suspended: bool
+
+
+# アカウント利用状態更新（PUT）
+class UpdateAccountResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    account_type: AccountType
+    is_suspended: bool

@@ -17,3 +17,8 @@ class CreateAccountRequest(BaseModel):
     def password_check(cls, password: str) -> str:  # cls はクラス自身（CreateAccountRequest）を指す
         validate_password(password)  # パスワード制約確認
         return password  # 問題なければ、そのまま返す
+
+# アカウント利用状態更新（PUT）
+class UpdateAccountRequest(BaseModel):
+    id: int
+    is_suspended: bool

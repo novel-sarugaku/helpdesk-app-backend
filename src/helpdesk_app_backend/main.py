@@ -23,5 +23,5 @@ app.add_middleware(
 # FastAPI本体 (app) に、上で読み込んだ集約済みのルーター一式を登録
 app.include_router(router, prefix="/api")
 
-# 引数；反応してほしいもの, 反応した際の処理
+# 引数；反応してほしいもの, 反応した際の処理（上記の CORS設定 が効いていなため handler 内で別途設定）
 app.add_exception_handler(Exception, handler)
