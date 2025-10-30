@@ -3,11 +3,11 @@ from collections.abc import Callable, Iterator
 import pytest
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import ColumnProperty
 
 from helpdesk_app_backend.core.check_token import validate_access_token
 from helpdesk_app_backend.main import app
 from helpdesk_app_backend.models.db.base import get_db
-from helpdesk_app_backend.models.db.user import User
 from helpdesk_app_backend.models.enum.user import AccountType
 
 
@@ -49,11 +49,30 @@ class FakeSessionCommitSuccess:
     ) -> None:
         self.commit_called = False
 
-    # 追加されたレコードへIDを付けるフリをするメソッド
+    # 追加されたレコードへID、defaultが設定されているカラムにその値を付けるフリをするメソッド
     # 本来DBに保存するときに呼ぶsession.add(...)の代役
     # 追加されたインスタンスにIDを設定(今回はID=1)する(本来はDBが自動で設定する)
-    def add(self, instance: User) -> None:
-        instance.id = 1
+    def add(self, model) -> None:  # noqa: ANN001
+        # model.__mapper__.iterate_properties → .__mapper__.iterate_properties は sqlAlchemy か python の modelのプロパティ
+        for prop in model.__mapper__.iterate_properties:
+            # isinstance（） → python の書き方 第一引数が第二引数のクラスのインスタンスかどうか
+            if isinstance(prop, ColumnProperty):
+                # col → id や name などカラムの情報
+                # col.name → カラム名
+                for col in prop.columns:
+                    if col.name == "created_at" or col.name == "updated_at":
+                        continue
+                    if col.name == "id":
+                        value = 1
+                        # 第一引数のクラスに対して、第二引数の文字列をキーにして第三引数の値を返却するようにプロパティを作成
+                        # 例：model.id とした場合 1 が返ってくる
+                        setattr(model, col.name, value)
+                    # addメソッドが呼ばれた際に、default設定されているが値が未入力の場合
+                    if col.default is not None and getattr(model, col.name) is None:
+                        # col.default.arg → default値 をそのまま取得してくる
+                        # python 三項演算子 ifの場合 左側 そうでない場合 右側（メリット：一行でかける）
+                        value = col.default.arg() if callable(col.default.arg) else col.default.arg
+                        setattr(model, col.name, value)
 
     def commit(self) -> None:
         self.commit_called = True
@@ -95,8 +114,8 @@ class FakeSessionCommitError:
         self.commit_called = False  # commitが呼ばれたかどうかのフラグ → 呼ばれていない
         self.rolled_back = False  # rollbackが呼ばれたかどうかのフラグ → 呼ばれていない
 
-    def add(self, instance: User) -> None:
-        instance.id = 1
+    def add(self, _) -> None:  # noqa: ANN001
+        return
 
     def commit(self) -> None:
         self.commit_called = True  # commitが呼ばれたことを記録
