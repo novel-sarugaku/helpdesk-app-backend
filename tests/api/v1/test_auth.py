@@ -50,6 +50,7 @@ def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch)
     expected_payload = {
         "sub": body["email"],
         "account_type": AccountType.ADMIN.value,
+        "user_id": 1,
         "exp": current_time + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 

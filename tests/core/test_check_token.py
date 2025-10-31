@@ -14,14 +14,14 @@ def test_validate_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         check_token,
         "verify_access_token",
-        lambda token: {"account_type": AccountType.ADMIN.value},
+        lambda token: {"account_type": AccountType.ADMIN.value, "user_id": 1},
     )
 
     # 実行
     response = check_token.validate_access_token("dummy.jwt")
 
     # 検証
-    assert response == AccountType.ADMIN
+    assert response ==  {'account_type': 'admin', 'user_id': 1}
 
 
 # アクセストークンが存在しない
