@@ -4,24 +4,20 @@ from jose.exceptions import ExpiredSignatureError
 
 from helpdesk_app_backend.exceptions.unauthorized_exception import UnauthorizedException
 from helpdesk_app_backend.logic.business.security import verify_access_token
-from helpdesk_app_backend.models.enum.user import AccountType
 
 
 # アクセストークンの検証
 def validate_access_token(
     access_token: str | None = Cookie(default=None),
-) -> AccountType:
+) -> dict:
     # access_token が None だったら 401エラーを返す
     if access_token is None:
         raise UnauthorizedException("アクセストークンが存在しません")
 
     # access_token が None でなければ 暗号解除(decode)を試みる
     try:
-        # デコードした access_token から account_type を抽出
-        decoded_access_token = verify_access_token(access_token)
-        user_account_type = decoded_access_token.get("account_type")
-
-        return AccountType(user_account_type)
+        # デコードした access_token 返す
+        return verify_access_token(access_token)
 
     # 暗号解除(decode)できなかった場合、401エラーを返す
     except ExpiredSignatureError as err:

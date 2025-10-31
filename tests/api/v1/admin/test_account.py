@@ -24,10 +24,17 @@ class DummyAccount:
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_get_accounts_success(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
     # テスト用登録済データ
     registered_data = [
         DummyAccount(
@@ -39,7 +46,8 @@ def test_get_accounts_success(
             is_suspended=False,
         )
     ]
-    override_validate_access_token(account_type)
+
+    override_validate_access_token(access_token)
 
     monkeypatch.setattr(api_account, "get_users_all", lambda _session: registered_data)
 
@@ -64,11 +72,18 @@ def test_get_accounts_success(
 @pytest.mark.parametrize("account_type", [AccountType.STAFF, AccountType.SUPPORTER])
 def test_get_accounts_forbidden(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
 ) -> None:
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
     # 受け取った account_type（STAFF/SUPPORTER）で、override_validate_access_token を実行
-    override_validate_access_token(account_type)
+    override_validate_access_token(access_token)
 
     # 実行
     response = test_client.get("/api/v1/admin/account")
@@ -82,12 +97,19 @@ def test_get_accounts_forbidden(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_create_account_success(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     success_session: "FakeSessionCommitSuccess",
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     monkeypatch.setattr(api_account, "get_user_by_email", lambda _session, email: None)
 
@@ -120,12 +142,19 @@ def test_create_account_success(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_create_account_error(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     error_session: "FakeSessionCommitError",
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     monkeypatch.setattr(api_account, "get_user_by_email", lambda _session, email: None)
 
@@ -150,10 +179,17 @@ def test_create_account_error(
 @pytest.mark.parametrize("account_type", [AccountType.STAFF, AccountType.SUPPORTER])
 def test_create_accounts_forbidden(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     # テスト用登録予定データ
     body = {
@@ -176,10 +212,17 @@ def test_create_accounts_forbidden(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_create_account_email_conflict(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
     # テスト用登録済データ
     registered_data = [
         DummyAccount(
@@ -194,7 +237,7 @@ def test_create_account_email_conflict(
 
     monkeypatch.setattr(api_account, "get_user_by_email", lambda _session, email: registered_data)
 
-    override_validate_access_token(account_type)
+    override_validate_access_token(access_token)
 
     # テスト用登録予定データ
     body = {
@@ -217,11 +260,18 @@ def test_create_account_email_conflict(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_create_account_admin_type_forbidden(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     monkeypatch.setattr(api_account, "get_user_by_email", lambda _session, email: None)
 
@@ -246,11 +296,18 @@ def test_create_account_admin_type_forbidden(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_update_account_success(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     # テスト用登録済データ
     registered_data = DummyAccount(
@@ -282,12 +339,19 @@ def test_update_account_success(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_update_account_error(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     error_session: "FakeSessionCommitError",
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     # テスト用登録済データ
     registered_data = DummyAccount(
@@ -319,10 +383,17 @@ def test_update_account_error(
 @pytest.mark.parametrize("account_type", [AccountType.STAFF, AccountType.SUPPORTER])
 def test_update_accounts_forbidden(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     # テスト用更新予定データ
     body = {
@@ -342,11 +413,18 @@ def test_update_accounts_forbidden(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_update_account_id_missing(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     monkeypatch.setattr(api_account, "get_user_by_id", lambda _session, id: None)
 
@@ -368,11 +446,18 @@ def test_update_account_id_missing(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_update_account_admin_type_forbidden(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
 
     # テスト用登録済データ
     registered_data = DummyAccount(

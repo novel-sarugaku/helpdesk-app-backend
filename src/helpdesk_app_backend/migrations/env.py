@@ -10,6 +10,7 @@ from sqlalchemy import engine_from_config, pool
 from helpdesk_app_backend.core.database import DATABASE_URL
 
 # Alembicに「全モデルクラス（Baseなど）をここから読み込める」と案内
+# * → initファイルを読み込む
 # 「# noqa: F403」 → ruffに対して「この警告は無視していい」と指示
 from helpdesk_app_backend.models.db import *  # noqa: F403
 from helpdesk_app_backend.models.db.base import Base

@@ -41,9 +41,11 @@ def get_accounts(
     # Depends(関数) → この関数を呼ぶ前に、()内の関数を実行
     session: Annotated[Session, Depends(get_db)],
     # トークンの確認し、問題なければ get_accounts 実行
-    current_account_type: Annotated[AccountType, Depends(validate_access_token)],
+    access_token: Annotated[dict, Depends(validate_access_token)],
 ) -> list[GetAccountResponseItem]:
-    check_account(current_account_type)
+    account_type = AccountType(access_token.get("account_type"))
+
+    check_account(account_type)
 
     accounts = get_users_all(session)
 
@@ -64,10 +66,11 @@ def get_accounts(
 def create_account(
     body: CreateAccountRequest,
     session: Annotated[Session, Depends(get_db)],
-    current_account_type: Annotated[AccountType, Depends(validate_access_token)],
+    access_token: Annotated[dict, Depends(validate_access_token)],
 ) -> CreateAccountResponse:
+    account_type = AccountType(access_token.get("account_type"))
 
-    check_account(current_account_type)
+    check_account(account_type)
 
     if get_user_by_email(session, body.email) is not None:
         raise BusinessException("すでに存在するメールアドレスです")
@@ -102,9 +105,11 @@ def create_account(
 def update_account(
     body: UpdateAccountRequest,
     session: Annotated[Session, Depends(get_db)],
-    current_account_type: Annotated[AccountType, Depends(validate_access_token)],
+    access_token: Annotated[dict, Depends(validate_access_token)],
 ) -> UpdateAccountResponse:
-    check_account(current_account_type)
+    account_type = AccountType(access_token.get("account_type"))
+
+    check_account(account_type)
 
     target_account = get_user_by_id(session, id=body.id)
 
