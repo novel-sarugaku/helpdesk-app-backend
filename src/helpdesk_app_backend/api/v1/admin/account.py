@@ -12,6 +12,7 @@ from helpdesk_app_backend.logic.business.security import trans_password_hash
 from helpdesk_app_backend.models.db.base import get_db
 from helpdesk_app_backend.models.db.user import User
 from helpdesk_app_backend.models.enum.user import AccountType
+from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 from helpdesk_app_backend.models.request.v1.admin.account import (
     CreateAccountRequest,
     UpdateAccountRequest,
@@ -41,9 +42,9 @@ def get_accounts(
     # Depends(関数) → この関数を呼ぶ前に、()内の関数を実行
     session: Annotated[Session, Depends(get_db)],
     # トークンの確認し、問題なければ get_accounts 実行
-    access_token: Annotated[dict, Depends(validate_access_token)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
 ) -> list[GetAccountResponseItem]:
-    account_type = AccountType(access_token.get("account_type"))
+    account_type = access_token.account_type
 
     check_account(account_type)
 
@@ -66,9 +67,9 @@ def get_accounts(
 def create_account(
     body: CreateAccountRequest,
     session: Annotated[Session, Depends(get_db)],
-    access_token: Annotated[dict, Depends(validate_access_token)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
 ) -> CreateAccountResponse:
-    account_type = AccountType(access_token.get("account_type"))
+    account_type = access_token.account_type
 
     check_account(account_type)
 
@@ -105,9 +106,9 @@ def create_account(
 def update_account(
     body: UpdateAccountRequest,
     session: Annotated[Session, Depends(get_db)],
-    access_token: Annotated[dict, Depends(validate_access_token)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
 ) -> UpdateAccountResponse:
-    account_type = AccountType(access_token.get("account_type"))
+    account_type = access_token.account_type
 
     check_account(account_type)
 

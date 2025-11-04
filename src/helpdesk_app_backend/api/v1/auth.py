@@ -33,6 +33,10 @@ def login(
     ):
         raise UnauthorizedException("メールアドレスまたはパスワードが一致しません")
 
+    # アカウントが停止状態（is_suspended=True）の場合
+    if target_user.is_suspended:
+        raise UnauthorizedException("このアカウントは停止中です")
+
     # payload作成
     payload = {
         "sub": target_user.email,

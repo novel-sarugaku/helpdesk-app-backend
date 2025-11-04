@@ -9,11 +9,14 @@ from fastapi.testclient import TestClient
 from helpdesk_app_backend.api.v1 import ticket as api_ticket
 from helpdesk_app_backend.models.enum.ticket import TicketStatusType
 from helpdesk_app_backend.models.enum.user import AccountType
+from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 
 
 @dataclass
 class DummyUser:
+    id: int
     name: str
+    is_suspended: bool
 
 
 @dataclass
@@ -33,16 +36,16 @@ class DummyTicket:
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_get_accounts_success_for_staff(
     test_client: TestClient,
-    override_validate_access_token: Callable[[dict], None],
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    access_token = {
-        "sub": "test@example.com",
-        "user_id": 1,
-        "account_type": account_type.value,
-        "exp": 1761905996,
-    }
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=1,
+        account_type=account_type,
+        exp=1761905996,
+    )
 
     # テスト用登録済データ
     registered_data = [
@@ -52,9 +55,9 @@ def test_get_accounts_success_for_staff(
             is_public=True,
             status=TicketStatusType.START,
             staff_id=1,
-            staff=DummyUser(name="テスト社員1"),
+            staff=DummyUser(id=1, name="テスト社員1", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
         DummyTicket(
@@ -63,9 +66,9 @@ def test_get_accounts_success_for_staff(
             is_public=False,
             staff_id=1,
             status=TicketStatusType.START,
-            staff=DummyUser(name="テスト社員1"),
+            staff=DummyUser(id=1, name="テスト社員1", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
         DummyTicket(
@@ -74,9 +77,9 @@ def test_get_accounts_success_for_staff(
             is_public=True,
             status=TicketStatusType.START,
             staff_id=2,
-            staff=DummyUser(name="テスト社員2"),
+            staff=DummyUser(id=2, name="テスト社員2", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
         DummyTicket(
@@ -85,15 +88,20 @@ def test_get_accounts_success_for_staff(
             is_public=False,
             staff_id=2,
             status=TicketStatusType.START,
-            staff=DummyUser(name="テスト社員2"),
+            staff=DummyUser(id=2, name="テスト社員2", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
     ]
 
     override_validate_access_token(access_token)
 
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=1, name="テスト社員1", is_suspended=False),
+    )
     monkeypatch.setattr(api_ticket, "get_tickets_all", lambda _session: registered_data)
 
     # 実行
@@ -136,16 +144,16 @@ def test_get_accounts_success_for_staff(
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN, AccountType.SUPPORTER])
 def test_get_accounts_success_for_other(
     test_client: TestClient,
-    override_validate_access_token: Callable[[dict], None],
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
     account_type: AccountType,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    access_token = {
-        "sub": "test@example.com",
-        "user_id": 1,
-        "account_type": account_type.value,
-        "exp": 1761905996,
-    }
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=1,
+        account_type=account_type,
+        exp=1761905996,
+    )
 
     # テスト用登録済データ
     registered_data = [
@@ -155,9 +163,9 @@ def test_get_accounts_success_for_other(
             is_public=True,
             status=TicketStatusType.START,
             staff_id=1,
-            staff=DummyUser(name="テスト社員1"),
+            staff=DummyUser(id=1, name="テスト社員1", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
         DummyTicket(
@@ -166,9 +174,9 @@ def test_get_accounts_success_for_other(
             is_public=False,
             staff_id=1,
             status=TicketStatusType.START,
-            staff=DummyUser(name="テスト社員1"),
+            staff=DummyUser(id=1, name="テスト社員1", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
         DummyTicket(
@@ -177,9 +185,9 @@ def test_get_accounts_success_for_other(
             is_public=True,
             status=TicketStatusType.START,
             staff_id=2,
-            staff=DummyUser(name="テスト社員2"),
+            staff=DummyUser(id=2, name="テスト社員2", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
         DummyTicket(
@@ -188,15 +196,20 @@ def test_get_accounts_success_for_other(
             is_public=False,
             staff_id=2,
             status=TicketStatusType.START,
-            staff=DummyUser(name="テスト社員2"),
+            staff=DummyUser(id=2, name="テスト社員2", is_suspended=False),
             supporter_id=1,
-            supporter=DummyUser(name="テストサポート担当者1"),
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
     ]
 
     override_validate_access_token(access_token)
 
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=1, name="テスト社員1", is_suspended=False),
+    )
     monkeypatch.setattr(api_ticket, "get_tickets_all", lambda _session: registered_data)
 
     # 実行
@@ -242,3 +255,50 @@ def test_get_accounts_success_for_other(
             "created_at": "2020-07-21T06:12:30.000551",
         },
     ]
+
+
+# GETテスト（失敗：アカウントが停止中の場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_is_suspended_account(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=1,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.START,
+            staff_id=1,
+            staff=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            supporter_id=1,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    override_validate_access_token(access_token)
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=1, name="テスト社員1", is_suspended=True),
+    )
+    monkeypatch.setattr(api_ticket, "get_tickets_all", lambda _session: registered_data)
+
+    # 実行
+    response = test_client.get("api/v1/ticket")
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウントは停止中です"}
