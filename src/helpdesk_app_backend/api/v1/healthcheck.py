@@ -17,6 +17,7 @@ def healthcheck() -> str:
 
 @router.get("/auth")
 def auth_healthcheck(
-    current_acount_type: Annotated[AccountType, Depends(validate_access_token)],
+    access_token: Annotated[dict, Depends(validate_access_token)],
 ) -> HealthcheckAuthResponse:
-    return HealthcheckAuthResponse(account_type=current_acount_type)
+    account_type = AccountType(access_token.get("account_type"))
+    return HealthcheckAuthResponse(account_type=account_type)

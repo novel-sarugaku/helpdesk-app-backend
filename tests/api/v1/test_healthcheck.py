@@ -21,10 +21,18 @@ def test_healthcheck(test_client: TestClient) -> None:
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN])
 def test_auth_healthcheck_return_account_type(
     test_client: TestClient,
-    override_validate_access_token: Callable[[AccountType], None],
+    override_validate_access_token: Callable[[dict], None],
     account_type: AccountType,
 ) -> None:
-    override_validate_access_token(account_type)
+    access_token = {
+        "sub": "test@example.com",
+        "user_id": 1,
+        "account_type": account_type.value,
+        "exp": 1761905996,
+    }
+
+    override_validate_access_token(access_token)
+
     # 実行
     response = test_client.get(f"{BASE_URL}/auth")
 
