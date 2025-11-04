@@ -33,9 +33,14 @@ def login(
     ):
         raise UnauthorizedException("メールアドレスまたはパスワードが一致しません")
 
+    # アカウントが停止状態（is_suspended=True）の場合
+    if target_user.is_suspended:
+        raise UnauthorizedException("このアカウントは停止中です")
+
     # payload作成
     payload = {
         "sub": target_user.email,
+        "user_id": target_user.id,
         "account_type": target_user.account_type.value,
         "exp": get_now_UTC() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }

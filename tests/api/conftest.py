@@ -8,7 +8,7 @@ from sqlalchemy.orm import ColumnProperty
 from helpdesk_app_backend.core.check_token import validate_access_token
 from helpdesk_app_backend.main import app
 from helpdesk_app_backend.models.db.base import get_db
-from helpdesk_app_backend.models.enum.user import AccountType
+from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 
 
 # 【Fixture】TestClient を提供
@@ -31,10 +31,10 @@ def test_client() -> TestClient:
 # 【Fixture】validate_access_token を差し替え（任意の AccountType を返す）
 @pytest.fixture
 def override_validate_access_token() -> (
-    Iterator[Callable[[AccountType], None]]
+    Iterator[Callable[[AccessTokenPayload], None]]
 ):  # 関数の型を表す型ヒント。Callable[[引数の型, ...], 返り値の型] → 引数に AccountType を1つ受け取り、値を返さない(None)関数という意味
-    def _fake_validate_access_token(account_type: AccountType) -> None:
-        app.dependency_overrides[validate_access_token] = lambda: account_type
+    def _fake_validate_access_token(access_token: AccessTokenPayload) -> None:
+        app.dependency_overrides[validate_access_token] = lambda: access_token
 
     yield _fake_validate_access_token
 

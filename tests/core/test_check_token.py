@@ -7,6 +7,7 @@ import helpdesk_app_backend.logic.business.security as security
 
 from helpdesk_app_backend.exceptions.unauthorized_exception import UnauthorizedException
 from helpdesk_app_backend.models.enum.user import AccountType
+from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 
 
 # アクセストークンが有効
@@ -14,14 +15,24 @@ def test_validate_access_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         check_token,
         "verify_access_token",
-        lambda token: {"account_type": AccountType.ADMIN.value},
+        lambda token: {
+            "sub": "test@example.com",
+            "account_type": AccountType.ADMIN,
+            "user_id": 1,
+            "exp": 1761905996,
+        },
     )
 
     # 実行
     response = check_token.validate_access_token("dummy.jwt")
 
     # 検証
-    assert response == AccountType.ADMIN
+    assert response == AccessTokenPayload(
+        sub="test@example.com",
+        account_type=AccountType.ADMIN,
+        user_id=1,
+        exp=1761905996,
+    )
 
 
 # アクセストークンが存在しない

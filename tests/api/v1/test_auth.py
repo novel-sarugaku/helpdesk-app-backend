@@ -20,6 +20,7 @@ class DummyUser:
     email: str
     password: str  # ハッシュ済みとして扱う
     account_type: AccountType
+    is_suspended: bool
 
 
 BASE_URL = "/api/v1/auth"
@@ -35,6 +36,7 @@ def fake_get_user_by_email(monkeypatch: pytest.MonkeyPatch) -> None:
             email=email,
             password="hashedpass",
             account_type=AccountType.ADMIN,
+            is_suspended=False,
         )
 
     monkeypatch.setattr(api_auth, "get_user_by_email", _fake)
@@ -50,6 +52,7 @@ def test_login_success(test_client: TestClient, monkeypatch: pytest.MonkeyPatch)
     expected_payload = {
         "sub": body["email"],
         "account_type": AccountType.ADMIN.value,
+        "user_id": 1,
         "exp": current_time + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     }
 
@@ -85,6 +88,33 @@ def test_login_user_not_foun(test_client: TestClient, monkeypatch: pytest.Monkey
     # 検証
     assert response.status_code == 401
     assert response.json() == {"detail": "メールアドレスまたはパスワードが一致しません"}
+
+
+# ログインテスト（失敗：アカウントが停止中の場合）
+@pytest.mark.usefixtures("override_get_db_success")
+def test_is_suspended_account(test_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        api_auth,
+        "get_user_by_email",
+        lambda _session, email: DummyUser(
+            id=1,
+            name="テストユーザー",
+            email=email,
+            password="hashedpass",  # 値は何でもOK（verify_passwordをTrueにするため）
+            account_type=AccountType.STAFF,
+            is_suspended=True,
+        ),
+    )
+    monkeypatch.setattr(api_auth, "verify_password", lambda plain_password, hashed_password: True)
+
+    body = {"email": "notfoundtest@example.com", "password": "testP@ssw0rd"}
+
+    # 実行
+    response = test_client.post(f"{BASE_URL}/login", json=body)
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウントは停止中です"}
 
 
 # ログインテスト（失敗：パスワード不一致）
