@@ -7,7 +7,7 @@ from helpdesk_app_backend.handlers.server_exception_handler import handler
 # テストでエラー内容が不鮮明のとき、app = FastAPI(debug=True)にして、
 # テスト実行時にprint(response.text)で確認する
 # 通常はdebug=Trueを含めない
-app = FastAPI(debug=True)
+app = FastAPI()
 
 # CORS設定
 app.add_middleware(
