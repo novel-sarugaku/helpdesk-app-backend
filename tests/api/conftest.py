@@ -1,4 +1,6 @@
 from collections.abc import Callable, Iterator
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -61,7 +63,9 @@ class FakeSessionCommitSuccess:
                 # col.name → カラム名
                 for col in prop.columns:
                     if col.name == "created_at" or col.name == "updated_at":
-                        continue
+                        tz = ZoneInfo("Asia/Tokyo")
+                        value = datetime.now(tz)
+                        setattr(model, col.name, value)
                     if col.name == "id":
                         value = 1
                         # 第一引数のクラスに対して、第二引数の文字列をキーにして第三引数の値を返却するようにプロパティを作成

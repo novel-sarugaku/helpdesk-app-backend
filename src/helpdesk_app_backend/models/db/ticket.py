@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from helpdesk_app_backend.logic.calculate.calculate_datetime import get_now
@@ -23,7 +23,7 @@ class Ticket(Base):
     status: Mapped[TicketStatusType] = mapped_column(
         Enum(TicketStatusType), nullable=False, default=TicketStatusType.START
     )
-    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
     staff_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     supporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_now)
