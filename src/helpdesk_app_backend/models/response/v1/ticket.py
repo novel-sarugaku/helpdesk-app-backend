@@ -16,6 +16,17 @@ class GetTicketResponseItem(BaseModel):
     created_at: datetime
 
 
+# チケット詳細取得（GET）
+class GetTicketDetailResponse(BaseModel):
+    id: int
+    title: str
+    is_public: bool
+    status: TicketStatusType
+    description: str
+    supporter: str | None
+    created_at: datetime
+
+
 # チケット追加（POST）
 class CreateTicketResponse(BaseModel):
     id: int

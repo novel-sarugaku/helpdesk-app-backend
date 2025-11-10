@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from helpdesk_app_backend.core.check_token import validate_access_token
+from helpdesk_app_backend.exceptions.business_exception import BusinessException
 from helpdesk_app_backend.exceptions.forbidden_exception import ForbiddenException
 from helpdesk_app_backend.exceptions.unauthorized_exception import UnauthorizedException
 from helpdesk_app_backend.models.db.base import get_db
@@ -13,9 +14,10 @@ from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayloa
 from helpdesk_app_backend.models.request.v1.ticket import CreateTicketRequest
 from helpdesk_app_backend.models.response.v1.ticket import (
     CreateTicketResponse,
+    GetTicketDetailResponse,
     GetTicketResponseItem,
 )
-from helpdesk_app_backend.repositories.ticket import get_tickets_all
+from helpdesk_app_backend.repositories.ticket import get_ticket_by_id, get_tickets_all
 from helpdesk_app_backend.repositories.user import get_user_by_id
 
 router = APIRouter()
@@ -73,6 +75,47 @@ def get_tickets(
         )
         for target_ticket in target_tickets
     ]
+
+
+@router.get("/{ticket_id}")
+def get_ticket_detail(
+    ticket_id: int,
+    session: Annotated[Session, Depends(get_db)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
+) -> GetTicketDetailResponse:
+    account_type = access_token.account_type
+    user_id = access_token.user_id
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
+
+    # アカウントが停止状態（is_suspended=True）の場合
+    if target_account.is_suspended:
+        raise UnauthorizedException("このアカウントは停止中です")
+
+    # 存在しないチケットを取得しようとした場合
+    if target_ticket is None:
+        raise BusinessException("指定したチケットは存在しません")
+
+    # 社員が他人の非公開チケットを取得しようとした場合
+    if (
+        account_type == AccountType.STAFF
+        and target_ticket.staff_id != user_id
+        and not target_ticket.is_public
+    ):
+        raise ForbiddenException("他の社員の非公開チケットは閲覧できません")
+
+    return GetTicketDetailResponse(
+        id=target_ticket.id,
+        title=target_ticket.title,
+        is_public=target_ticket.is_public,
+        status=target_ticket.status,
+        description=target_ticket.description,
+        supporter=target_ticket.supporter.name if target_ticket.supporter else None,
+        created_at=target_ticket.created_at,
+    )
 
 
 @router.post("")
