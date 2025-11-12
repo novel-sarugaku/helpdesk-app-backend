@@ -34,6 +34,15 @@ class DummyTicket:
     created_at: datetime
 
 
+@dataclass
+class DummyAction:
+    id: int
+    ticket_id: int
+    action_user: DummyUser
+    action_description: str
+    created_at: datetime
+
+
 # GETテスト：一覧取得（成功：アカウントタイプが社員の場合）
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_get_tickets_success_for_staff(
@@ -358,6 +367,23 @@ def test_get_ticket_detail_success_for_staff(
         ),
     ]
 
+    registered_action_data = [
+        DummyAction(
+            id=1,
+            ticket_id=2,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容1",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+        DummyAction(
+            id=2,
+            ticket_id=2,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容2",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
     override_validate_access_token(access_token)
 
     monkeypatch.setattr(
@@ -370,6 +396,14 @@ def test_get_ticket_detail_success_for_staff(
         "get_ticket_by_id",
         lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
     )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_actions_by_ticket_id",
+        lambda _session, id: [
+            action for action in registered_action_data if action.ticket_id == id
+        ],
+    )
 
     # 実行
     response = test_client.get("api/v1/ticket/2")
@@ -384,6 +418,22 @@ def test_get_ticket_detail_success_for_staff(
         "description": "テスト詳細2",
         "supporter": "テストサポート担当者1",
         "created_at": "2020-07-21T06:12:30.000551",
+        "actions": [
+            {
+                "id": 1,
+                "ticket": 2,
+                "action_user": "テスト社員1",
+                "action_description": "テスト対応内容1",
+                "created_at": "2020-07-21T06:12:30.000551",
+            },
+            {
+                "id": 2,
+                "ticket": 2,
+                "action_user": "テスト社員1",
+                "action_description": "テスト対応内容2",
+                "created_at": "2020-07-21T06:12:30.000551",
+            },
+        ],
     }
 
 
@@ -430,6 +480,23 @@ def test_get_ticket_detail_success_for_other(
         ),
     ]
 
+    registered_action_data = [
+        DummyAction(
+            id=1,
+            ticket_id=1,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容1",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+        DummyAction(
+            id=2,
+            ticket_id=1,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容2",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
     override_validate_access_token(access_token)
 
     monkeypatch.setattr(
@@ -442,6 +509,14 @@ def test_get_ticket_detail_success_for_other(
         "get_ticket_by_id",
         lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
     )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_actions_by_ticket_id",
+        lambda _session, id: [
+            action for action in registered_action_data if action.ticket_id == id
+        ],
+    )
 
     # 実行
     response = test_client.get("api/v1/ticket/1")
@@ -456,6 +531,22 @@ def test_get_ticket_detail_success_for_other(
         "description": "テスト詳細1",
         "supporter": "テストサポート担当者1",
         "created_at": "2020-07-21T06:12:30.000551",
+        "actions": [
+            {
+                "id": 1,
+                "ticket": 1,
+                "action_user": "テスト社員1",
+                "action_description": "テスト対応内容1",
+                "created_at": "2020-07-21T06:12:30.000551",
+            },
+            {
+                "id": 2,
+                "ticket": 1,
+                "action_user": "テスト社員1",
+                "action_description": "テスト対応内容2",
+                "created_at": "2020-07-21T06:12:30.000551",
+            },
+        ],
     }
 
 
@@ -502,6 +593,16 @@ def test_get_ticket_detail_not_found_for_unknown_id(
         ),
     ]
 
+    registered_action_data = [
+        DummyAction(
+            id=1,
+            ticket_id=1,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容1",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
     override_validate_access_token(access_token)
 
     monkeypatch.setattr(
@@ -514,6 +615,14 @@ def test_get_ticket_detail_not_found_for_unknown_id(
         "get_ticket_by_id",
         lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
     )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_actions_by_ticket_id",
+        lambda _session, id: [
+            action for action in registered_action_data if action.ticket_id == id
+        ],
+    )
 
     # 実行
     response = test_client.get("api/v1/ticket/99")
@@ -566,6 +675,16 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
         ),
     ]
 
+    registered_action_data = [
+        DummyAction(
+            id=1,
+            ticket_id=1,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容1",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
     override_validate_access_token(access_token)
 
     monkeypatch.setattr(
@@ -578,6 +697,14 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
         "get_ticket_by_id",
         lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
     )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_actions_by_ticket_id",
+        lambda _session, id: [
+            action for action in registered_action_data if action.ticket_id == id
+        ],
+    )
 
     # 実行
     response = test_client.get("api/v1/ticket/1")
@@ -630,6 +757,16 @@ def test_get_ticket_detail_is_suspended_account(
         ),
     ]
 
+    registered_action_data = [
+        DummyAction(
+            id=1,
+            ticket_id=1,
+            action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
+            action_description="テスト対応内容1",
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
     override_validate_access_token(access_token)
 
     monkeypatch.setattr(
@@ -642,6 +779,14 @@ def test_get_ticket_detail_is_suspended_account(
         "get_ticket_by_id",
         lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
     )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_actions_by_ticket_id",
+        lambda _session, id: [
+            action for action in registered_action_data if action.ticket_id == id
+        ],
+    )
 
     # 実行
     response = test_client.get("api/v1/ticket/1")

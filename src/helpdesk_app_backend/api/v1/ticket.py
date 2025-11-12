@@ -12,11 +12,13 @@ from helpdesk_app_backend.models.db.ticket import Ticket
 from helpdesk_app_backend.models.enum.user import AccountType
 from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 from helpdesk_app_backend.models.request.v1.ticket import CreateTicketRequest
+from helpdesk_app_backend.models.response.v1.action import GetActionResponseItem
 from helpdesk_app_backend.models.response.v1.ticket import (
     CreateTicketResponse,
     GetTicketDetailResponse,
     GetTicketResponseItem,
 )
+from helpdesk_app_backend.repositories.action import get_actions_by_ticket_id
 from helpdesk_app_backend.repositories.ticket import get_ticket_by_id, get_tickets_all
 from helpdesk_app_backend.repositories.user import get_user_by_id
 
@@ -90,6 +92,8 @@ def get_ticket_detail(
     target_account = get_user_by_id(session, id=user_id)
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
+    # 対応情報取得
+    actions = get_actions_by_ticket_id(session, id=ticket_id)
 
     # アカウントが停止状態（is_suspended=True）の場合
     if target_account.is_suspended:
@@ -115,6 +119,16 @@ def get_ticket_detail(
         description=target_ticket.description,
         supporter=target_ticket.supporter.name if target_ticket.supporter else None,
         created_at=target_ticket.created_at,
+        actions=[
+            GetActionResponseItem(
+                id=action.id,
+                ticket=action.ticket_id,
+                action_user=action.action_user.name if action.action_user else None,
+                action_description=action.action_description,
+                created_at=action.created_at,
+            )
+            for action in actions
+        ],
     )
 
 

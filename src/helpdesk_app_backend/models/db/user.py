@@ -19,6 +19,7 @@ from helpdesk_app_backend.models.enum.user import AccountType
 # 循環インポートはロジックを含むファイルを互いに読み込んだときに発生する
 # 型のチェックを行いたいときだけ TYPE_CHECKING を使い、型のみであることを教え循環インポートを防ぐ
 if TYPE_CHECKING:
+    from helpdesk_app_backend.models.db.action import Action
     from helpdesk_app_backend.models.db.ticket import Ticket
 
 
@@ -46,4 +47,8 @@ class User(Base):
     )
     supporter_tickets: Mapped[list[Ticket]] = relationship(
         foreign_keys="Ticket.supporter_id", back_populates="supporter"
+    )
+    actions: Mapped[list[Action]] = relationship(
+        "Action",
+        foreign_keys="Action.action_user_id", back_populates="action_user"
     )
