@@ -11,7 +11,7 @@ from helpdesk_app_backend.models.db.base import Base
 from helpdesk_app_backend.models.enum.ticket import TicketStatusType
 
 if TYPE_CHECKING:
-    from helpdesk_app_backend.models.db.action import Action
+    from helpdesk_app_backend.models.db.ticket_history import TicketHistory
     from helpdesk_app_backend.models.db.user import User
 
 
@@ -38,6 +38,6 @@ class Ticket(Base):
     )
 
     # チケットから見てアクションは「多」のためlist
-    actions: Mapped[list[Action]] = relationship(
-        "Action", foreign_keys="Action.ticket_id", back_populates="ticket"
+    ticket_histories: Mapped[list[TicketHistory]] = relationship(
+        "TicketHistory", foreign_keys="TicketHistory.ticket_id", back_populates="ticket"
     )

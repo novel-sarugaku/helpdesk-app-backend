@@ -14,8 +14,8 @@ if TYPE_CHECKING:
     from helpdesk_app_backend.models.db.user import User
 
 
-class Action(Base):
-    __tablename__ = "actions"
+class TicketHistory(Base):
+    __tablename__ = "ticket_histories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ticket_id: Mapped[int] = mapped_column(ForeignKey("tickets.id"), nullable=False)
@@ -25,8 +25,8 @@ class Action(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_now, onupdate=get_now)
 
     ticket: Mapped[Ticket] = relationship(
-        "Ticket", foreign_keys=[ticket_id], back_populates="actions"
+        "Ticket", foreign_keys=[ticket_id], back_populates="ticket_histories"
     )
     action_user: Mapped[User] = relationship(
-        "User", foreign_keys=[action_user_id], back_populates="actions"
+        "User", foreign_keys=[action_user_id], back_populates="ticket_histories"
     )

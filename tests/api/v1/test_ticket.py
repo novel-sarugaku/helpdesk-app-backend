@@ -35,7 +35,7 @@ class DummyTicket:
 
 
 @dataclass
-class DummyAction:
+class DummyTicketHistory:
     id: int
     ticket_id: int
     action_user: DummyUser
@@ -367,15 +367,15 @@ def test_get_ticket_detail_success_for_staff(
         ),
     ]
 
-    registered_action_data = [
-        DummyAction(
+    registered_ticket_histories_data = [
+        DummyTicketHistory(
             id=1,
             ticket_id=2,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
             action_description="テスト対応内容1",
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
-        DummyAction(
+        DummyTicketHistory(
             id=2,
             ticket_id=2,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
@@ -399,9 +399,9 @@ def test_get_ticket_detail_success_for_staff(
 
     monkeypatch.setattr(
         api_ticket,
-        "get_actions_by_ticket_id",
+        "get_ticket_histories_by_ticket_id",
         lambda _session, id: [
-            action for action in registered_action_data if action.ticket_id == id
+            ticket_history for ticket_history in registered_ticket_histories_data if ticket_history.ticket_id == id
         ],
     )
 
@@ -418,7 +418,7 @@ def test_get_ticket_detail_success_for_staff(
         "description": "テスト詳細2",
         "supporter": "テストサポート担当者1",
         "created_at": "2020-07-21T06:12:30.000551",
-        "actions": [
+        "ticket_histories": [
             {
                 "id": 1,
                 "ticket": 2,
@@ -480,15 +480,15 @@ def test_get_ticket_detail_success_for_other(
         ),
     ]
 
-    registered_action_data = [
-        DummyAction(
+    registered_ticket_histories_data = [
+        DummyTicketHistory(
             id=1,
             ticket_id=1,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
             action_description="テスト対応内容1",
             created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
         ),
-        DummyAction(
+        DummyTicketHistory(
             id=2,
             ticket_id=1,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
@@ -512,9 +512,9 @@ def test_get_ticket_detail_success_for_other(
 
     monkeypatch.setattr(
         api_ticket,
-        "get_actions_by_ticket_id",
+        "get_ticket_histories_by_ticket_id",
         lambda _session, id: [
-            action for action in registered_action_data if action.ticket_id == id
+            ticket_history for ticket_history in registered_ticket_histories_data if ticket_history.ticket_id == id
         ],
     )
 
@@ -531,7 +531,7 @@ def test_get_ticket_detail_success_for_other(
         "description": "テスト詳細1",
         "supporter": "テストサポート担当者1",
         "created_at": "2020-07-21T06:12:30.000551",
-        "actions": [
+        "ticket_histories": [
             {
                 "id": 1,
                 "ticket": 1,
@@ -593,8 +593,8 @@ def test_get_ticket_detail_not_found_for_unknown_id(
         ),
     ]
 
-    registered_action_data = [
-        DummyAction(
+    registered_ticket_histories_data = [
+        DummyTicketHistory(
             id=1,
             ticket_id=1,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
@@ -618,9 +618,9 @@ def test_get_ticket_detail_not_found_for_unknown_id(
 
     monkeypatch.setattr(
         api_ticket,
-        "get_actions_by_ticket_id",
+        "get_ticket_histories_by_ticket_id",
         lambda _session, id: [
-            action for action in registered_action_data if action.ticket_id == id
+            ticket_history for ticket_history in registered_ticket_histories_data if ticket_history.ticket_id == id
         ],
     )
 
@@ -675,8 +675,8 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
         ),
     ]
 
-    registered_action_data = [
-        DummyAction(
+    registered_ticket_histories_data = [
+        DummyTicketHistory(
             id=1,
             ticket_id=1,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
@@ -700,9 +700,9 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
 
     monkeypatch.setattr(
         api_ticket,
-        "get_actions_by_ticket_id",
+        "get_ticket_histories_by_ticket_id",
         lambda _session, id: [
-            action for action in registered_action_data if action.ticket_id == id
+            ticket_history for ticket_history in registered_ticket_histories_data if ticket_history.ticket_id == id
         ],
     )
 
@@ -757,8 +757,8 @@ def test_get_ticket_detail_is_suspended_account(
         ),
     ]
 
-    registered_action_data = [
-        DummyAction(
+    registered_ticket_histories_data = [
+        DummyTicketHistory(
             id=1,
             ticket_id=1,
             action_user=DummyUser(id=1, name="テスト社員1", is_suspended=False),
@@ -782,9 +782,9 @@ def test_get_ticket_detail_is_suspended_account(
 
     monkeypatch.setattr(
         api_ticket,
-        "get_actions_by_ticket_id",
+        "get_ticket_histories_by_ticket_id",
         lambda _session, id: [
-            action for action in registered_action_data if action.ticket_id == id
+            ticket_history for ticket_history in registered_ticket_histories_data if ticket_history.ticket_id == id
         ],
     )
 
