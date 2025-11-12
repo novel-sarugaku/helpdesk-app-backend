@@ -20,6 +20,7 @@ from helpdesk_app_backend.models.enum.user import AccountType
 # 型のチェックを行いたいときだけ TYPE_CHECKING を使い、型のみであることを教え循環インポートを防ぐ
 if TYPE_CHECKING:
     from helpdesk_app_backend.models.db.ticket import Ticket
+    from helpdesk_app_backend.models.db.ticket_history import TicketHistory
 
 
 class User(Base):
@@ -42,8 +43,11 @@ class User(Base):
     # back_populates: 双方向のリレーションシップを定義するために使用
     # Userから見てTicketは複数あるため list[Ticket] とする
     staff_tickets: Mapped[list[Ticket]] = relationship(
-        foreign_keys="Ticket.staff_id", back_populates="staff"
+        "Ticket", foreign_keys="Ticket.staff_id", back_populates="staff"
     )
     supporter_tickets: Mapped[list[Ticket]] = relationship(
-        foreign_keys="Ticket.supporter_id", back_populates="supporter"
+        "Ticket", foreign_keys="Ticket.supporter_id", back_populates="supporter"
+    )
+    ticket_histories: Mapped[list[TicketHistory]] = relationship(
+        "TicketHistory", foreign_keys="TicketHistory.action_user_id", back_populates="action_user"
     )

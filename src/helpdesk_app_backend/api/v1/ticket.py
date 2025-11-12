@@ -15,9 +15,11 @@ from helpdesk_app_backend.models.request.v1.ticket import CreateTicketRequest
 from helpdesk_app_backend.models.response.v1.ticket import (
     CreateTicketResponse,
     GetTicketDetailResponse,
+    GetTicketHistoryResponseItem,
     GetTicketResponseItem,
 )
 from helpdesk_app_backend.repositories.ticket import get_ticket_by_id, get_tickets_all
+from helpdesk_app_backend.repositories.ticket_history import get_ticket_histories_by_ticket_id
 from helpdesk_app_backend.repositories.user import get_user_by_id
 
 router = APIRouter()
@@ -36,8 +38,6 @@ def get_tickets(
     session: Annotated[Session, Depends(get_db)],
     access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
 ) -> list[GetTicketResponseItem]:
-    all_tickets = get_tickets_all(session)
-
     account_type = access_token.account_type
     user_id = access_token.user_id
 
@@ -46,6 +46,8 @@ def get_tickets(
     # アカウントが停止状態（is_suspended=True）の場合
     if target_account.is_suspended:
         raise UnauthorizedException("このアカウントは停止中です")
+
+    all_tickets = get_tickets_all(session)
 
     # アカウントタイプが「社員」以外の場合
     target_tickets = all_tickets
@@ -88,12 +90,13 @@ def get_ticket_detail(
 
     # アカウント情報取得
     target_account = get_user_by_id(session, id=user_id)
-    # チケット情報取得
-    target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # アカウントが停止状態（is_suspended=True）の場合
     if target_account.is_suspended:
         raise UnauthorizedException("このアカウントは停止中です")
+
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
@@ -107,6 +110,9 @@ def get_ticket_detail(
     ):
         raise ForbiddenException("他の社員の非公開チケットは閲覧できません")
 
+    # 対応情報取得
+    ticket_histories = get_ticket_histories_by_ticket_id(session, id=ticket_id)
+
     return GetTicketDetailResponse(
         id=target_ticket.id,
         title=target_ticket.title,
@@ -115,6 +121,16 @@ def get_ticket_detail(
         description=target_ticket.description,
         supporter=target_ticket.supporter.name if target_ticket.supporter else None,
         created_at=target_ticket.created_at,
+        ticket_histories=[
+            GetTicketHistoryResponseItem(
+                id=ticket_history.id,
+                ticket=ticket_history.ticket_id,
+                action_user=ticket_history.action_user.name if ticket_history.action_user else None,
+                action_description=ticket_history.action_description,
+                created_at=ticket_history.created_at,
+            )
+            for ticket_history in ticket_histories
+        ],
     )
 
 
