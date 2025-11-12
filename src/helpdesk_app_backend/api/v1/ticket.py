@@ -15,9 +15,9 @@ from helpdesk_app_backend.models.request.v1.ticket import CreateTicketRequest
 from helpdesk_app_backend.models.response.v1.ticket import (
     CreateTicketResponse,
     GetTicketDetailResponse,
+    GetTicketHistoryResponseItem,
     GetTicketResponseItem,
 )
-from helpdesk_app_backend.models.response.v1.ticket_history import GetTicketHistoryResponseItem
 from helpdesk_app_backend.repositories.ticket import get_ticket_by_id, get_tickets_all
 from helpdesk_app_backend.repositories.ticket_history import get_ticket_histories_by_ticket_id
 from helpdesk_app_backend.repositories.user import get_user_by_id
