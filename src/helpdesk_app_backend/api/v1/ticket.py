@@ -9,6 +9,8 @@ from helpdesk_app_backend.exceptions.forbidden_exception import ForbiddenExcepti
 from helpdesk_app_backend.exceptions.unauthorized_exception import UnauthorizedException
 from helpdesk_app_backend.models.db.base import get_db
 from helpdesk_app_backend.models.db.ticket import Ticket
+from helpdesk_app_backend.models.db.ticket_history import TicketHistory
+from helpdesk_app_backend.models.enum.ticket import TicketStatusType
 from helpdesk_app_backend.models.enum.user import AccountType
 from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 from helpdesk_app_backend.models.request.v1.ticket import CreateTicketRequest
@@ -17,6 +19,7 @@ from helpdesk_app_backend.models.response.v1.ticket import (
     GetTicketDetailResponse,
     GetTicketHistoryResponseItem,
     GetTicketResponseItem,
+    UpdateTicketResponse,
 )
 from helpdesk_app_backend.repositories.ticket import get_ticket_by_id, get_tickets_all
 from helpdesk_app_backend.repositories.ticket_history import get_ticket_histories_by_ticket_id
@@ -43,9 +46,9 @@ def get_tickets(
 
     target_account = get_user_by_id(session, id=user_id)
 
-    # アカウントが停止状態（is_suspended=True）の場合
-    if target_account.is_suspended:
-        raise UnauthorizedException("このアカウントは停止中です")
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     all_tickets = get_tickets_all(session)
 
@@ -91,9 +94,9 @@ def get_ticket_detail(
     # アカウント情報取得
     target_account = get_user_by_id(session, id=user_id)
 
-    # アカウントが停止状態（is_suspended=True）の場合
-    if target_account.is_suspended:
-        raise UnauthorizedException("このアカウントは停止中です")
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
@@ -101,6 +104,11 @@ def get_ticket_detail(
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
         raise BusinessException("指定したチケットは存在しません")
+
+    # アカウントタイプがサポート担当者であり、チケットの担当である場合
+    is_own_ticket = bool(
+        account_type == AccountType.SUPPORTER and target_ticket.supporter_id == user_id
+    )
 
     # 社員が他人の非公開チケットを取得しようとした場合
     if (
@@ -121,6 +129,7 @@ def get_ticket_detail(
         description=target_ticket.description,
         supporter=target_ticket.supporter.name if target_ticket.supporter else None,
         created_at=target_ticket.created_at,
+        is_own_ticket=is_own_ticket,
         ticket_histories=[
             GetTicketHistoryResponseItem(
                 id=ticket_history.id,
@@ -142,6 +151,13 @@ def create_ticket(
 ) -> CreateTicketResponse:
     account_type = access_token.account_type
     user_id = access_token.user_id
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     check_account(account_type)
 
@@ -168,4 +184,72 @@ def create_ticket(
         description=new_ticket.description,
         staff=new_ticket.staff_id,
         created_at=new_ticket.created_at,
+    )
+
+
+# [URLのパス設計]
+# 「どのリソースに何をしたいか」がURLで表現されているのが望ましい
+# 動詞を先頭に置いたり、動詞だけのパスは避ける
+# 一般的な形「/リソース（複数形）/{リソースID}/状態を変える特別なアクション」
+@router.put("/{ticket_id}/assign")
+def assign_supporter(
+    ticket_id: int,
+    session: Annotated[Session, Depends(get_db)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
+) -> UpdateTicketResponse:
+    account_type = access_token.account_type
+    user_id = access_token.user_id
+
+    # アカウントタイプがサポート担当者でない場合
+    if account_type != AccountType.SUPPORTER:
+        raise ForbiddenException("サポート担当者でないため、チケットの担当にはなれません")
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
+
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
+
+    # 存在しないチケットを取得しようとした場合
+    if target_ticket is None:
+        raise BusinessException("指定したチケットは存在しません")
+
+    # すでにチケットのサポート担当者が存在する場合
+    if target_ticket.supporter_id:
+        raise BusinessException("すでにサポート担当者が存在します")
+
+    # チケットのサポート担当者を更新
+    target_ticket.supporter_id = user_id
+
+    # ステータスが「新規登録」でない場合
+    if target_ticket.status != TicketStatusType.START:
+        raise BusinessException("チケットステータスが不正です")
+
+    # ステータスを「新規登録」から「担当者割り当て済み」に変更
+    target_ticket.status = TicketStatusType.ASSIGNED
+
+    # 対応履歴の追加
+    new_ticket_history = TicketHistory(
+        ticket_id=target_ticket.id,
+        action_user_id=None,
+        action_description=f"担当者 {target_account.name} を担当に割り当てました",
+    )
+
+    session.add(new_ticket_history)
+
+    try:
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        raise error
+
+    # FEを意識した必要最低限のレスポンスにする(以下以外の変更内容はDBを確認)
+    return UpdateTicketResponse(
+        id=target_ticket.id,
+        status=target_ticket.status,
+        supporter=target_account.name,
     )
