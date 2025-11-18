@@ -7,13 +7,17 @@ from helpdesk_app_backend.core.check_token import validate_access_token
 from helpdesk_app_backend.exceptions.business_exception import BusinessException
 from helpdesk_app_backend.exceptions.forbidden_exception import ForbiddenException
 from helpdesk_app_backend.exceptions.unauthorized_exception import UnauthorizedException
+from helpdesk_app_backend.logic.business.status_transition_rules import can_status_transition
 from helpdesk_app_backend.models.db.base import get_db
 from helpdesk_app_backend.models.db.ticket import Ticket
 from helpdesk_app_backend.models.db.ticket_history import TicketHistory
 from helpdesk_app_backend.models.enum.ticket import TicketStatusType
 from helpdesk_app_backend.models.enum.user import AccountType
 from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
-from helpdesk_app_backend.models.request.v1.ticket import CreateTicketRequest
+from helpdesk_app_backend.models.request.v1.ticket import (
+    CreateTicketRequest,
+    UpdateTicketStatusRequest,
+)
 from helpdesk_app_backend.models.response.v1.ticket import (
     CreateTicketResponse,
     GetTicketDetailResponse,
@@ -225,11 +229,15 @@ def assign_supporter(
     # チケットのサポート担当者を更新
     target_ticket.supporter_id = user_id
 
-    # ステータスが「新規登録」でない場合
+    # ステータスが「新規質問」でない場合
     if target_ticket.status != TicketStatusType.START:
-        raise BusinessException("チケットステータスが不正です")
+        raise Exception
 
-    # ステータスを「新規登録」から「担当者割り当て済み」に変更
+    # 遷移不可のステータスに変更しようとした場合
+    if not can_status_transition(target_ticket.status, TicketStatusType.ASSIGNED):
+        raise BusinessException("選択したステータスには変更できません")
+
+    # ステータスを「新規質問」から「担当者割り当て済み」に変更
     target_ticket.status = TicketStatusType.ASSIGNED
 
     # 対応履歴の追加
@@ -248,6 +256,82 @@ def assign_supporter(
         raise error
 
     # FEを意識した必要最低限のレスポンスにする(以下以外の変更内容はDBを確認)
+    return UpdateTicketResponse(
+        id=target_ticket.id,
+        status=target_ticket.status,
+        supporter=target_account.name,
+    )
+
+
+@router.put("/{ticket_id}/status")
+def update_ticket_status(
+    ticket_id: int,
+    body: UpdateTicketStatusRequest,
+    session: Annotated[Session, Depends(get_db)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
+) -> UpdateTicketResponse:
+    account_type = access_token.account_type
+    user_id = access_token.user_id
+    new_status = body.status
+
+    # ステータスを「新規質問」に変更しようとした場合
+    if new_status == TicketStatusType.START:
+        raise BusinessException("「新規質問」には遷移できません")
+
+    # アカウントタイプが社員（サポート担当者または管理者でない場合）の場合
+    if account_type == AccountType.STAFF:
+        raise ForbiddenException("社員のため、ステータスを変更することができません")
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
+
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
+
+    # 存在しないチケットを取得しようとした場合
+    if target_ticket is None:
+        raise BusinessException("指定したチケットは存在しません")
+
+    # 現在のステータスが「新規質問」の場合、ステータス変更不可
+    if target_ticket.status == TicketStatusType.START:
+        raise BusinessException("現在のステータスからの変更はできません")
+
+    # チケットの担当者が存在しない場合
+    if target_ticket.supporter_id is None:
+        raise BusinessException("担当者が設定されていません")
+
+    # 権限がない（担当者でない、または管理者でない）アカウントがステータスを変更しようとした場合
+    if not (
+        (account_type == AccountType.ADMIN) or (target_ticket.supporter_id == target_account.id)
+    ):
+        raise ForbiddenException("ステータスを変更する権限がありません")
+
+    # 遷移不可のステータスに変更しようとした場合
+    if not can_status_transition(target_ticket.status, new_status):
+        raise BusinessException("選択したステータスには変更できません")
+
+    # 選択したステータスに変更
+    target_ticket.status = new_status
+
+    # 対応履歴の追加
+    new_ticket_history = TicketHistory(
+        ticket_id=target_ticket.id,
+        action_user_id=user_id,
+        action_description=f"ステータスを「{target_ticket.status.label_ja}」に変更しました",
+    )
+
+    session.add(new_ticket_history)
+
+    try:
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        raise error
+
     return UpdateTicketResponse(
         id=target_ticket.id,
         status=target_ticket.status,
