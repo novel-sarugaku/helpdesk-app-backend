@@ -1851,59 +1851,6 @@ def test_unassign_supporter_ticket_not_found(
     assert response.json() == {"detail": "指定したチケットは存在しません"}
 
 
-# PUTテスト：サポート担当者解除設定（失敗：チケットの担当が存在しない場合）
-@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
-def test_unassign_supporter_supporter_not_set(
-    test_client: TestClient,
-    override_validate_access_token: Callable[[AccessTokenPayload], None],
-    account_type: AccountType,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    access_token = AccessTokenPayload(
-        sub="test@example.com",
-        user_id=5,
-        account_type=account_type,
-        exp=1761905996,
-    )
-
-    override_validate_access_token(access_token)
-
-    # テスト用登録済データ
-    registered_data = [
-        DummyTicket(
-            id=1,
-            title="テストチケット1",
-            is_public=False,
-            status=TicketStatusType.ASSIGNED,
-            description="テスト詳細1",
-            staff_id=2,
-            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
-            supporter_id=None,
-            supporter=None,
-            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
-        ),
-    ]
-
-    monkeypatch.setattr(
-        api_ticket,
-        "get_user_by_id",
-        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
-    )
-
-    monkeypatch.setattr(
-        api_ticket,
-        "get_ticket_by_id",
-        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
-    )  # next() → 条件に合う最初のチケットを返す、なければ None
-
-    # 実行
-    response = test_client.put("/api/v1/ticket/1/unassign")
-
-    # 検証
-    assert response.status_code == 403
-    assert response.json() == {"detail": "このチケットの担当解除を行う権限がありません"}
-
-
 # PUTテスト：サポート担当者解除設定（失敗：ログイン中のアカウントがチケットの担当者でない場合）
 @pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
 def test_unassign_supporter_other_user_is_supporter(

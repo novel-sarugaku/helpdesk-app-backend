@@ -290,8 +290,8 @@ def unassign_supporter(
     if target_ticket is None:
         raise BusinessException("指定したチケットは存在しません")
 
-    # チケットのサポート担当者が存在しない または ログイン中のアカウントがチケットの担当者でない場合
-    if (target_ticket.supporter_id is None) or (target_ticket.supporter_id != target_account.id):
+    # ログイン中のアカウントがチケットの担当者でない場合
+    if target_ticket.supporter_id != target_account.id:
         raise ForbiddenException("このチケットの担当解除を行う権限がありません")
 
     # 遷移不可のステータスに変更しようとした場合
