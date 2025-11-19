@@ -26,7 +26,7 @@ class Ticket(Base):
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
     staff_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    supporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=True)
+    supporter_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=get_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=get_now, onupdate=get_now)
 

@@ -1630,6 +1630,498 @@ def test_assign_supporter_is_suspended_account(
     assert response.json() == {"detail": "このアカウント情報は不正です"}
 
 
+# PUTテスト：サポート担当者解除設定（成功）
+@pytest.mark.usefixtures("override_get_db_success")
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_success(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    success_session: "FakeSessionCommitSuccess",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 200
+    assert success_session.commit_called is True
+    assert response.json() == {
+        "id": 1,
+        "status": TicketStatusType.START.value,
+        "supporter": None,
+    }
+
+
+# PUTテスト：サポート担当者解除設定（失敗）
+@pytest.mark.usefixtures("override_get_db_error")
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_error(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    error_session: "FakeSessionCommitError",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert error_session.commit_called is True
+    assert error_session.rolled_back is True
+
+
+# PUTテスト：サポート担当者解除設定（失敗：アカウントタイプがサポート担当者でない場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_unassign_supporter_account_type_is_not_supporter(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 403
+    assert response.json() == {"detail": "サポート担当者でないため、チケットの担当解除はできません"}
+
+
+# PUTテスト：サポート担当者解除設定（失敗：指定したチケットが存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_ticket_not_found(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/99/unassign")
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": "指定したチケットは存在しません"}
+
+
+# PUTテスト：サポート担当者解除設定（失敗：チケットの担当が存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_supporter_not_set(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=None,
+            supporter=None,
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 403
+    assert response.json() == {"detail": "このチケットの担当解除を行う権限がありません"}
+
+
+# PUTテスト：サポート担当者解除設定（失敗：ログイン中のアカウントがチケットの担当者でない場合）
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_other_user_is_supporter(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=6,
+            supporter=DummyUser(id=6, name="テストサポート担当者2", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 403
+    assert response.json() == {"detail": "このチケットの担当解除を行う権限がありません"}
+
+
+# PUTテスト：サポート担当者解除設定（失敗：遷移不可のステータスに変更しようとした場合）
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_when_transition_forbidden(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.CLOSED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    monkeypatch.setattr(
+        api_ticket,
+        "can_status_transition",
+        lambda current_status, new_status: False,
+    )
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": "選択したステータスには変更できません"}
+
+
+# PUTテスト：サポート担当者解除設定（失敗：アカウントが存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_account_not_found(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.CLOSED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: None,
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウント情報は不正です"}
+
+
+# PUTテスト：サポート担当者解除設定（失敗：アカウントが停止中の場合）
+@pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])
+def test_unassign_supporter_is_suspended_account(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=5,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.CLOSED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=5, name="テストサポート担当者1", is_suspended=True),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/unassign")
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウント情報は不正です"}
+
+
 # PUTテスト：ステータス変更（成功）
 @pytest.mark.usefixtures("override_get_db_success")
 @pytest.mark.parametrize("account_type", [AccountType.SUPPORTER])

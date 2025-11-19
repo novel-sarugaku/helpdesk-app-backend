@@ -263,6 +263,69 @@ def assign_supporter(
     )
 
 
+@router.put("/{ticket_id}/unassign")
+def unassign_supporter(
+    ticket_id: int,
+    session: Annotated[Session, Depends(get_db)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
+) -> UpdateTicketResponse:
+    account_type = access_token.account_type
+    user_id = access_token.user_id
+
+    # アカウントタイプがサポート担当者でない場合
+    if account_type != AccountType.SUPPORTER:
+        raise ForbiddenException("サポート担当者でないため、チケットの担当解除はできません")
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
+
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
+
+    # 存在しないチケットを取得しようとした場合
+    if target_ticket is None:
+        raise BusinessException("指定したチケットは存在しません")
+
+    # チケットのサポート担当者が存在しない または ログイン中のアカウントがチケットの担当者でない場合
+    if (target_ticket.supporter_id is None) or (target_ticket.supporter_id != target_account.id):
+        raise ForbiddenException("このチケットの担当解除を行う権限がありません")
+
+    # 遷移不可のステータスに変更しようとした場合
+    if not can_status_transition(target_ticket.status, TicketStatusType.START):
+        raise BusinessException("選択したステータスには変更できません")
+
+    # チケットのサポート担当者を更新
+    target_ticket.supporter_id = None
+
+    # ステータスを「新規質問」に変更
+    target_ticket.status = TicketStatusType.START
+
+    # 対応履歴の追加
+    new_ticket_history = TicketHistory(
+        ticket_id=target_ticket.id,
+        action_user_id=None,
+        action_description=f"担当者 {target_account.name} の担当を解除しました",
+    )
+
+    session.add(new_ticket_history)
+
+    try:
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        raise error
+
+    return UpdateTicketResponse(
+        id=target_ticket.id,
+        status=target_ticket.status,
+        supporter=None,
+    )
+
+
 @router.put("/{ticket_id}/status")
 def update_ticket_status(
     ticket_id: int,
