@@ -55,4 +55,4 @@ class CreateTicketResponse(BaseModel):
 class UpdateTicketResponse(BaseModel):
     id: int
     status: TicketStatusType
-    supporter: str
+    supporter: str | None
