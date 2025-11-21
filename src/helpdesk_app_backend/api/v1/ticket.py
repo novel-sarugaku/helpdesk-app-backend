@@ -122,7 +122,7 @@ def get_ticket_detail(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException("他の社員の非公開チケットは閲覧できません")
+        raise ForbiddenException("指定したチケットは存在しない、もしくは操作権限がありません")
 
     # 対応情報取得
     ticket_histories = get_ticket_histories_by_ticket_id(session, id=ticket_id)
@@ -223,7 +223,7 @@ def create_ticket_comment(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException("他の社員の非公開チケットは閲覧できません")
+        raise ForbiddenException("指定したチケットは存在しない、もしくは操作権限がありません")
 
     # 現在のステータスが「クローズ」の場合
     if target_ticket.status == TicketStatusType.CLOSED:

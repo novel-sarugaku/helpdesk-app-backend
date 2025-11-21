@@ -769,7 +769,7 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
 
     # 検証
     assert response.status_code == 403
-    assert response.json() == {"detail": "他の社員の非公開チケットは閲覧できません"}
+    assert response.json() == {"detail": "指定したチケットは存在しない、もしくは操作権限がありません"}
 
 
 # GETテスト：詳細取得（失敗：アカウントが存在しない場合）
@@ -1381,7 +1381,7 @@ def test_create_ticket_comment_when_staff_accesses_other_private_ticket(
 
     # 検証
     assert response.status_code == 403
-    assert response.json() == {"detail": "他の社員の非公開チケットは閲覧できません"}
+    assert response.json() == {"detail": "指定したチケットは存在しない、もしくは操作権限がありません"}
 
 
 # POSTテスト：チケットに対する質疑応答登録（失敗：現在のステータスが「クローズ」の場合）
