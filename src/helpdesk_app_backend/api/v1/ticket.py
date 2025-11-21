@@ -33,6 +33,9 @@ from helpdesk_app_backend.repositories.user import get_user_by_id
 
 router = APIRouter()
 
+INVALID_ACCOUNT_INFORMATION_MESSAGE = "このアカウント情報は不正です"
+TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE = "指定したチケットは存在しない、もしくは操作権限がありません"
+
 
 # 社員以外のアカウントタイプの場合
 def check_account(
@@ -54,7 +57,7 @@ def get_tickets(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     all_tickets = get_tickets_all(session)
 
@@ -102,14 +105,14 @@ def get_ticket_detail(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # アカウントタイプがサポート担当者であり、チケットの担当である場合
     is_own_ticket = bool(
@@ -122,7 +125,7 @@ def get_ticket_detail(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException("指定したチケットは存在しない、もしくは操作権限がありません")
+        raise ForbiddenException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 対応情報取得
     ticket_histories = get_ticket_histories_by_ticket_id(session, id=ticket_id)
@@ -163,7 +166,7 @@ def create_ticket(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     check_account(account_type)
 
@@ -208,14 +211,14 @@ def create_ticket_comment(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # アカウントタイプが社員であり、他人の非公開チケットの場合
     if (
@@ -223,7 +226,7 @@ def create_ticket_comment(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException("指定したチケットは存在しない、もしくは操作権限がありません")
+        raise ForbiddenException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 現在のステータスが「クローズ」の場合
     if target_ticket.status == TicketStatusType.CLOSED:
@@ -272,14 +275,14 @@ def assign_supporter(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # すでにチケットのサポート担当者が存在する場合
     if target_ticket.supporter_id:
@@ -340,14 +343,14 @@ def unassign_supporter(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # ログイン中のアカウントがチケットの担当者でない場合
     if target_ticket.supporter_id != target_account.id:
@@ -409,14 +412,14 @@ def update_ticket_status(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException("このアカウント情報は不正です")
+        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 現在のステータスが「新規質問」の場合、ステータス変更不可
     if target_ticket.status == TicketStatusType.START:

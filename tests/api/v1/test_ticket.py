@@ -43,6 +43,10 @@ class DummyTicketHistory:
     created_at: datetime
 
 
+INVALID_ACCOUNT_INFORMATION_MESSAGE = "このアカウント情報は不正です"
+TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE = "指定したチケットは存在しない、もしくは操作権限がありません"
+
+
 # GETテスト：一覧取得（成功：アカウントタイプが社員の場合）
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_get_tickets_success_for_staff(
@@ -321,7 +325,7 @@ def test_get_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # GETテスト：一覧取得（失敗：アカウントが停止中の場合）
@@ -369,7 +373,7 @@ def test_get_tickets_is_suspended_account(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # GETテスト：詳細取得（成功：アカウントタイプが社員の場合）
@@ -685,7 +689,7 @@ def test_get_ticket_detail_not_found_for_unknown_id(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # GETテスト：詳細取得（失敗：社員が他人の非公開チケットを取得しようとした場合）
@@ -769,7 +773,7 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
 
     # 検証
     assert response.status_code == 403
-    assert response.json() == {"detail": "指定したチケットは存在しない、もしくは操作権限がありません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # GETテスト：詳細取得（失敗：アカウントが存在しない場合）
@@ -853,7 +857,7 @@ def test_get_ticket_detail_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # GETテスト：詳細取得（失敗：アカウントが停止中の場合）
@@ -937,7 +941,7 @@ def test_get_ticket_detail_is_suspended_account(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # POSTテスト：チケット登録（成功）
@@ -1099,7 +1103,7 @@ def test_create_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # POSTテスト：チケット登録（失敗：失敗：アカウントが停止中の場合）
@@ -1140,7 +1144,7 @@ def test_create_ticket_is_suspended_account(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # POSTテスト：チケットに対する質疑応答登録（成功）
@@ -1323,7 +1327,7 @@ def test_create_ticket_comment_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # POSTテスト：チケットに対する質疑応答登録（失敗：アカウントタイプが社員であり、他人の非公開チケットの場合）
@@ -1381,7 +1385,7 @@ def test_create_ticket_comment_when_staff_accesses_other_private_ticket(
 
     # 検証
     assert response.status_code == 403
-    assert response.json() == {"detail": "指定したチケットは存在しない、もしくは操作権限がありません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # POSTテスト：チケットに対する質疑応答登録（失敗：現在のステータスが「クローズ」の場合）
@@ -1499,7 +1503,7 @@ def test_create_ticket_comment_when_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # POSTテスト：チケットに対する質疑応答登録（失敗：アカウントが停止中の場合）
@@ -1557,7 +1561,7 @@ def test_create_ticket_comment_is_suspended_account(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # PUTテスト：サポート担当者登録設定（成功）
@@ -1773,7 +1777,7 @@ def test_assign_supporter_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # PUTテスト：サポート担当者登録設定（失敗：すでにサポート担当者が存在する場合）
@@ -1991,7 +1995,7 @@ def test_assign_supporter_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # PUTテスト：サポート担当者登録設定（失敗：アカウントが停止中の場合）
@@ -2044,7 +2048,7 @@ def test_assign_supporter_is_suspended_account(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # PUTテスト：サポート担当者解除設定（成功）
@@ -2265,7 +2269,7 @@ def test_unassign_supporter_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # PUTテスト：サポート担当者解除設定（失敗：ログイン中のアカウントがチケットの担当者でない場合）
@@ -2430,7 +2434,7 @@ def test_unassign_supporter_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # PUTテスト：サポート担当者解除設定（失敗：アカウントが停止中の場合）
@@ -2483,7 +2487,7 @@ def test_unassign_supporter_is_suspended_account(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # PUTテスト：ステータス変更（成功）
@@ -2782,7 +2786,7 @@ def test_update_ticket_status_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # PUTテスト：ステータス変更（失敗：現在のステータスが「新規質問」である場合）
@@ -3078,7 +3082,7 @@ def test_update_ticket_status_when_account_not_found(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
 
 
 # PUTテスト：ステータス変更（失敗：アカウントが停止中の場合）
@@ -3136,4 +3140,4 @@ def test_update_ticket_status_when_account_is_suspended(
 
     # 検証
     assert response.status_code == 401
-    assert response.json() == {"detail": "このアカウント情報は不正です"}
+    assert response.json() == {"detail": INVALID_ACCOUNT_INFORMATION_MESSAGE}
