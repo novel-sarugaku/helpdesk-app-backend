@@ -15,10 +15,12 @@ from helpdesk_app_backend.models.enum.ticket import TicketStatusType
 from helpdesk_app_backend.models.enum.user import AccountType
 from helpdesk_app_backend.models.internal.token_payload import AccessTokenPayload
 from helpdesk_app_backend.models.request.v1.ticket import (
+    CreateTicketCommentRequest,
     CreateTicketRequest,
     UpdateTicketStatusRequest,
 )
 from helpdesk_app_backend.models.response.v1.ticket import (
+    CreateTicketCommentResponse,
     CreateTicketResponse,
     GetTicketDetailResponse,
     GetTicketHistoryResponseItem,
@@ -30,6 +32,8 @@ from helpdesk_app_backend.repositories.ticket_history import get_ticket_historie
 from helpdesk_app_backend.repositories.user import get_user_by_id
 
 router = APIRouter()
+
+TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE = "指定したチケットは存在しない、もしくは操作権限がありません"
 
 
 # 社員以外のアカウントタイプの場合
@@ -107,7 +111,7 @@ def get_ticket_detail(
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # アカウントタイプがサポート担当者であり、チケットの担当である場合
     is_own_ticket = bool(
@@ -120,7 +124,7 @@ def get_ticket_detail(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException("他の社員の非公開チケットは閲覧できません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 対応情報取得
     ticket_histories = get_ticket_histories_by_ticket_id(session, id=ticket_id)
@@ -191,6 +195,63 @@ def create_ticket(
     )
 
 
+@router.post("/{ticket_id}/comments")
+def create_ticket_comment(
+    ticket_id: int,
+    body: CreateTicketCommentRequest,
+    session: Annotated[Session, Depends(get_db)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
+) -> CreateTicketCommentResponse:
+    account_type = access_token.account_type
+    user_id = access_token.user_id
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
+
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
+
+    # 存在しないチケットを取得しようとした場合
+    if target_ticket is None:
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
+
+    # アカウントタイプが社員であり、他人の非公開チケットの場合
+    if (
+        account_type == AccountType.STAFF
+        and target_ticket.staff_id != user_id
+        and not target_ticket.is_public
+    ):
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
+
+    # 現在のステータスが「クローズ」の場合
+    if target_ticket.status == TicketStatusType.CLOSED:
+        raise BusinessException("このチケットはクローズ済みのため、コメントを追加できません")
+
+    new_ticket_history = TicketHistory(
+        ticket_id=target_ticket.id,
+        action_user_id=user_id,
+        action_description=body.comment,
+    )
+
+    session.add(new_ticket_history)
+
+    try:
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        raise error
+
+    return CreateTicketCommentResponse(
+        id=target_ticket.id,
+        action_user=target_account.name,
+        comment=new_ticket_history.action_description,
+    )
+
+
 # [URLのパス設計]
 # 「どのリソースに何をしたいか」がURLで表現されているのが望ましい
 # 動詞を先頭に置いたり、動詞だけのパスは避ける
@@ -220,7 +281,7 @@ def assign_supporter(
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # すでにチケットのサポート担当者が存在する場合
     if target_ticket.supporter_id:
@@ -288,7 +349,7 @@ def unassign_supporter(
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # ログイン中のアカウントがチケットの担当者でない場合
     if target_ticket.supporter_id != target_account.id:
@@ -357,7 +418,7 @@ def update_ticket_status(
 
     # 存在しないチケットを取得しようとした場合
     if target_ticket is None:
-        raise BusinessException("指定したチケットは存在しません")
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 現在のステータスが「新規質問」の場合、ステータス変更不可
     if target_ticket.status == TicketStatusType.START:

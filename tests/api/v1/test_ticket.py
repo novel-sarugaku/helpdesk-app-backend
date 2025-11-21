@@ -43,6 +43,9 @@ class DummyTicketHistory:
     created_at: datetime
 
 
+TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE = "指定したチケットは存在しない、もしくは操作権限がありません"
+
+
 # GETテスト：一覧取得（成功：アカウントタイプが社員の場合）
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_get_tickets_success_for_staff(
@@ -685,7 +688,7 @@ def test_get_ticket_detail_not_found_for_unknown_id(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # GETテスト：詳細取得（失敗：社員が他人の非公開チケットを取得しようとした場合）
@@ -768,8 +771,8 @@ def test_get_ticket_detail_forbidden_when_staff_accesses_others_private(
     response = test_client.get("api/v1/ticket/1")
 
     # 検証
-    assert response.status_code == 403
-    assert response.json() == {"detail": "他の社員の非公開チケットは閲覧できません"}
+    assert response.status_code == 422
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # GETテスト：詳細取得（失敗：アカウントが存在しない場合）
@@ -940,7 +943,7 @@ def test_get_ticket_detail_is_suspended_account(
     assert response.json() == {"detail": "このアカウント情報は不正です"}
 
 
-# POSTテスト（成功）
+# POSTテスト：チケット登録（成功）
 @pytest.mark.usefixtures("override_get_db_success")
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_create_ticket_success(
@@ -981,7 +984,7 @@ def test_create_ticket_success(
     assert success_session.commit_called is True
 
 
-# POSTテスト（失敗）
+# POSTテスト：チケット登録（失敗）
 @pytest.mark.usefixtures("override_get_db_error")
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_create_account_error(
@@ -1022,7 +1025,7 @@ def test_create_account_error(
     assert error_session.rolled_back is True
 
 
-# POSTテスト（失敗：社員以外がチケット登録しようとした場合）
+# POSTテスト：チケット登録（失敗：社員以外がチケット登録しようとした場合）
 @pytest.mark.parametrize("account_type", [AccountType.ADMIN, AccountType.SUPPORTER])
 def test_create_accounts_forbidden(
     test_client: TestClient,
@@ -1061,7 +1064,7 @@ def test_create_accounts_forbidden(
     assert response.json() == {"detail": "社員でないためチケットの登録はできません"}
 
 
-# POSTテスト（失敗：失敗：アカウントが存在しない場合）
+# POSTテスト：チケット登録（失敗：アカウントが存在しない場合）
 @pytest.mark.usefixtures("override_get_db_success")
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_create_account_not_found(
@@ -1102,7 +1105,7 @@ def test_create_account_not_found(
     assert response.json() == {"detail": "このアカウント情報は不正です"}
 
 
-# POSTテスト（失敗：失敗：アカウントが停止中の場合）
+# POSTテスト：チケット登録（失敗：アカウントが停止中の場合）
 @pytest.mark.usefixtures("override_get_db_success")
 @pytest.mark.parametrize("account_type", [AccountType.STAFF])
 def test_create_ticket_is_suspended_account(
@@ -1137,6 +1140,423 @@ def test_create_ticket_is_suspended_account(
 
     # 実行
     response = test_client.post("/api/v1/ticket", json=body)
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウント情報は不正です"}
+
+
+# POSTテスト：チケットに対する質疑応答登録（成功）
+@pytest.mark.usefixtures("override_get_db_success")
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_success(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    success_session: "FakeSessionCommitSuccess",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    response = test_client.post("/api/v1/ticket/1/comments", json=body)
+
+    # 検証
+    assert response.status_code == 200
+    assert success_session.commit_called is True
+    assert response.json() == {
+        "id": 1,
+        "action_user": "テスト社員1",
+        "comment": "質問です",
+    }
+
+
+# POSTテスト：チケットに対する質疑応答登録（失敗）
+@pytest.mark.usefixtures("override_get_db_error")
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_error(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    error_session: "FakeSessionCommitError",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    test_client.post("/api/v1/ticket/1/comments", json=body)
+
+    # 検証
+    assert error_session.commit_called is True
+    assert error_session.rolled_back is True
+
+
+# POSTテスト：チケットに対する質疑応答登録（失敗：指定したチケットが存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_ticket_not_found(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    response = test_client.post("/api/v1/ticket/99/comments", json=body)
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
+
+
+# POSTテスト：チケットに対する質疑応答登録（失敗：アカウントタイプが社員であり、他人の非公開チケットの場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_when_staff_accesses_other_private_ticket(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=3,
+            staff=DummyUser(id=3, name="テスト社員2", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    response = test_client.post("/api/v1/ticket/1/comments", json=body)
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
+
+
+# POSTテスト：チケットに対する質疑応答登録（失敗：現在のステータスが「クローズ」の場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_when_ticket_is_closed(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.CLOSED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    response = test_client.post("/api/v1/ticket/1/comments", json=body)
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "このチケットはクローズ済みのため、コメントを追加できません"
+    }
+
+
+# POSTテスト：チケットに対する質疑応答登録（失敗：アカウントが存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_when_account_not_found(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: None,
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    response = test_client.post("/api/v1/ticket/1/comments", json=body)
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウント情報は不正です"}
+
+
+# POSTテスト：チケットに対する質疑応答登録（失敗：アカウントが停止中の場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_create_ticket_comment_is_suspended_account(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=True,
+            status=TicketStatusType.CLOSED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=True),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=True),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用登録予定データ
+    body = {
+        "comment": "質問です",
+    }
+
+    # 実行
+    response = test_client.post("/api/v1/ticket/1/comments", json=body)
 
     # 検証
     assert response.status_code == 401
@@ -1356,7 +1776,7 @@ def test_assign_supporter_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # PUTテスト：サポート担当者登録設定（失敗：すでにサポート担当者が存在する場合）
@@ -1848,7 +2268,7 @@ def test_unassign_supporter_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # PUTテスト：サポート担当者解除設定（失敗：ログイン中のアカウントがチケットの担当者でない場合）
@@ -2365,7 +2785,7 @@ def test_update_ticket_status_ticket_not_found(
 
     # 検証
     assert response.status_code == 422
-    assert response.json() == {"detail": "指定したチケットは存在しません"}
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
 
 
 # PUTテスト：ステータス変更（失敗：現在のステータスが「新規質問」である場合）

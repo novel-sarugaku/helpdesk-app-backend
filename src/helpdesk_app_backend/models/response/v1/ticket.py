@@ -51,6 +51,13 @@ class CreateTicketResponse(BaseModel):
     created_at: datetime
 
 
+# チケットに対する質疑応答追加（POST）
+class CreateTicketCommentResponse(BaseModel):
+    id: int
+    action_user: str
+    comment: str
+
+
 # チケット更新（PUT）
 class UpdateTicketResponse(BaseModel):
     id: int

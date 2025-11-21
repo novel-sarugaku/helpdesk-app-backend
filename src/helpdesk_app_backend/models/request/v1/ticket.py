@@ -10,6 +10,11 @@ class CreateTicketRequest(BaseModel):
     description: str
 
 
+# チケットに対する質疑応答追加（POST）
+class CreateTicketCommentRequest(BaseModel):
+    comment: str
+
+
 # チケットステータス変更（PUT）
 class UpdateTicketStatusRequest(BaseModel):
     status: TicketStatusType
