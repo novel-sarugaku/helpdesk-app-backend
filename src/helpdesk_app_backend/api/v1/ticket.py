@@ -33,7 +33,6 @@ from helpdesk_app_backend.repositories.user import get_user_by_id
 
 router = APIRouter()
 
-INVALID_ACCOUNT_INFORMATION_MESSAGE = "このアカウント情報は不正です"
 TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE = "指定したチケットは存在しない、もしくは操作権限がありません"
 
 
@@ -57,7 +56,7 @@ def get_tickets(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     all_tickets = get_tickets_all(session)
 
@@ -105,7 +104,7 @@ def get_ticket_detail(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
@@ -125,7 +124,7 @@ def get_ticket_detail(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 対応情報取得
     ticket_histories = get_ticket_histories_by_ticket_id(session, id=ticket_id)
@@ -166,7 +165,7 @@ def create_ticket(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     check_account(account_type)
 
@@ -211,7 +210,7 @@ def create_ticket_comment(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
@@ -226,7 +225,7 @@ def create_ticket_comment(
         and target_ticket.staff_id != user_id
         and not target_ticket.is_public
     ):
-        raise ForbiddenException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
 
     # 現在のステータスが「クローズ」の場合
     if target_ticket.status == TicketStatusType.CLOSED:
@@ -275,7 +274,7 @@ def assign_supporter(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
@@ -343,7 +342,7 @@ def unassign_supporter(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
@@ -412,7 +411,7 @@ def update_ticket_status(
 
     # アカウントが存在しない または 停止状態（is_suspended=True）の場合
     if target_account is None or target_account.is_suspended:
-        raise UnauthorizedException(INVALID_ACCOUNT_INFORMATION_MESSAGE)
+        raise UnauthorizedException("このアカウント情報は不正です")
 
     # チケット情報取得
     target_ticket = get_ticket_by_id(session, id=ticket_id)
