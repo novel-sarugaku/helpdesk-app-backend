@@ -63,3 +63,10 @@ class UpdateTicketResponse(BaseModel):
     id: int
     status: TicketStatusType
     supporter: str | None
+
+
+# チケット公開設定変更（PUT）
+class UpdateTicketVisibilityResponse(BaseModel):
+    id: int
+    action_user: str
+    is_public: bool

@@ -18,6 +18,7 @@ from helpdesk_app_backend.models.request.v1.ticket import (
     CreateTicketCommentRequest,
     CreateTicketRequest,
     UpdateTicketStatusRequest,
+    UpdateTicketVisibilityRequest,
 )
 from helpdesk_app_backend.models.response.v1.ticket import (
     CreateTicketCommentResponse,
@@ -26,6 +27,7 @@ from helpdesk_app_backend.models.response.v1.ticket import (
     GetTicketHistoryResponseItem,
     GetTicketResponseItem,
     UpdateTicketResponse,
+    UpdateTicketVisibilityResponse,
 )
 from helpdesk_app_backend.repositories.ticket import get_ticket_by_id, get_tickets_all
 from helpdesk_app_backend.repositories.ticket_history import get_ticket_histories_by_ticket_id
@@ -460,4 +462,65 @@ def update_ticket_status(
         id=target_ticket.id,
         status=target_ticket.status,
         supporter=target_account.name,
+    )
+
+
+@router.put("/{ticket_id}/visibility")
+def update_ticket_visibility(
+    ticket_id: int,
+    body: UpdateTicketVisibilityRequest,
+    session: Annotated[Session, Depends(get_db)],
+    access_token: Annotated[AccessTokenPayload, Depends(validate_access_token)],
+) -> UpdateTicketVisibilityResponse:
+    account_type = access_token.account_type
+    user_id = access_token.user_id
+
+    # アカウント情報取得
+    target_account = get_user_by_id(session, id=user_id)
+
+    # アカウントが存在しない または 停止状態（is_suspended=True）の場合
+    if target_account is None or target_account.is_suspended:
+        raise UnauthorizedException("このアカウント情報は不正です")
+
+    # チケット情報取得
+    target_ticket = get_ticket_by_id(session, id=ticket_id)
+
+    # 存在しないチケットを取得しようとした場合
+    if target_ticket is None:
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
+
+    # アカウントタイプが社員であり、他人のチケットの場合
+    if account_type == AccountType.STAFF and target_ticket.staff_id != user_id:
+        raise BusinessException(TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE)
+
+    # 現在の設定と同じ設定に変更しようとした場合
+    # ※ 対応履歴など履歴として更新を残す必要がない場合は、早期リターンが望ましい（エラーは出さない）
+    if target_ticket.is_public == body.is_public:
+        raise BusinessException("設定は更新済みです")
+
+    # チケットの公開設定を更新
+    target_ticket.is_public = body.is_public
+
+    # 日本語に変換
+    visibility_label = target_ticket.translate_is_public_to_ja()
+
+    # 対応履歴の追加
+    new_ticket_history = TicketHistory(
+        ticket_id=target_ticket.id,
+        action_user_id=user_id,
+        action_description=f"公開設定を「{visibility_label}」に変更しました",
+    )
+
+    session.add(new_ticket_history)
+
+    try:
+        session.commit()
+    except Exception as error:
+        session.rollback()
+        raise error
+
+    return UpdateTicketVisibilityResponse(
+        id=target_ticket.id,
+        action_user=target_account.name,
+        is_public=target_ticket.is_public,
     )

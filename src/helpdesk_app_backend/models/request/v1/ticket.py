@@ -18,3 +18,8 @@ class CreateTicketCommentRequest(BaseModel):
 # チケットステータス変更（PUT）
 class UpdateTicketStatusRequest(BaseModel):
     status: TicketStatusType
+
+
+# チケット公開設定変更（PUT）
+class UpdateTicketVisibilityRequest(BaseModel):
+    is_public: bool

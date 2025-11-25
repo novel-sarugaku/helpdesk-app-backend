@@ -33,6 +33,9 @@ class DummyTicket:
     supporter: DummyUser | None
     created_at: datetime
 
+    def translate_is_public_to_ja(self) -> str:
+        return "公開" if self.is_public else "非公開"
+
 
 @dataclass
 class DummyTicketHistory:
@@ -3136,6 +3139,421 @@ def test_update_ticket_status_when_account_is_suspended(
 
     # 実行
     response = test_client.put("/api/v1/ticket/1/status", json=body)
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウント情報は不正です"}
+
+
+# PUTテスト：公開設定変更（成功）
+@pytest.mark.usefixtures("override_get_db_success")
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_success(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    success_session: "FakeSessionCommitSuccess",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": True,
+    }
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/visibility", json=body)
+
+    # 検証
+    assert response.status_code == 200
+    assert success_session.commit_called is True
+    assert response.json() == {
+        "id": 1,
+        "action_user": "テスト社員1",
+        "is_public": True,
+    }
+
+
+# PUTテスト：公開設定変更（失敗）
+@pytest.mark.usefixtures("override_get_db_error")
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_error(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    error_session: "FakeSessionCommitError",
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": True,
+    }
+
+    # 実行
+    test_client.put("/api/v1/ticket/1/visibility", json=body)
+
+    # 検証
+    assert error_session.commit_called is True
+    assert error_session.rolled_back is True
+
+
+# PUTテスト：公開設定変更（失敗：指定したチケットが存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_ticket_not_found(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": True,
+    }
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/99/visibility", json=body)
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
+
+
+# PUTテスト：公開設定変更（失敗：アカウントタイプが社員であり、他人のチケットの場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_when_staff_accesses_other_ticket(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=3,
+            staff=DummyUser(id=3, name="テスト社員2", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": True,
+    }
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/visibility", json=body)
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": TICKET_NOT_FOUND_OR_FORBIDDEN_MESSAGE}
+
+
+# PUTテスト：公開設定変更（失敗：現在の設定と同じ設定に変更しようとした場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_when_same_setting(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=False),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": False,
+    }
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/visibility", json=body)
+
+    # 検証
+    assert response.status_code == 422
+    assert response.json() == {"detail": "設定は更新済みです"}
+
+
+# PUTテスト：公開設定変更（失敗：アカウントが存在しない場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_when_account_not_found(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=False),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: None,
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": True,
+    }
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/visibility", json=body)
+
+    # 検証
+    assert response.status_code == 401
+    assert response.json() == {"detail": "このアカウント情報は不正です"}
+
+
+# PUTテスト：公開設定変更（失敗：アカウントが停止中の場合）
+@pytest.mark.parametrize("account_type", [AccountType.STAFF])
+def test_update_ticket_visibility_when_account_is_suspended(
+    test_client: TestClient,
+    override_validate_access_token: Callable[[AccessTokenPayload], None],
+    account_type: AccountType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    access_token = AccessTokenPayload(
+        sub="test@example.com",
+        user_id=2,
+        account_type=account_type,
+        exp=1761905996,
+    )
+
+    override_validate_access_token(access_token)
+
+    # テスト用登録済データ
+    registered_data = [
+        DummyTicket(
+            id=1,
+            title="テストチケット1",
+            is_public=False,
+            status=TicketStatusType.ASSIGNED,
+            description="テスト詳細1",
+            staff_id=2,
+            staff=DummyUser(id=2, name="テスト社員1", is_suspended=True),
+            supporter_id=5,
+            supporter=DummyUser(id=5, name="テストサポート担当者1", is_suspended=False),
+            created_at=datetime(2020, 7, 21, 6, 12, 30, 551),
+        ),
+    ]
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_user_by_id",
+        lambda _session, id: DummyUser(id=2, name="テスト社員1", is_suspended=True),
+    )
+
+    monkeypatch.setattr(
+        api_ticket,
+        "get_ticket_by_id",
+        lambda _session, id: next((ticket for ticket in registered_data if ticket.id == id), None),
+    )  # next() → 条件に合う最初のチケットを返す、なければ None
+
+    # テスト用変更予定データ
+    body = {
+        "is_public": True,
+    }
+
+    # 実行
+    response = test_client.put("/api/v1/ticket/1/visibility", json=body)
 
     # 検証
     assert response.status_code == 401
