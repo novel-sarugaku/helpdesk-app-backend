@@ -41,3 +41,7 @@ class Ticket(Base):
     ticket_histories: Mapped[list[TicketHistory]] = relationship(
         "TicketHistory", foreign_keys="TicketHistory.ticket_id", back_populates="ticket"
     )
+
+    # 日本語に変換（このモデルでのみ使用する関数であればここで記載してOK）
+    def translate_is_public_to_ja(self) -> str:
+        return "公開" if self.is_public else "非公開"
